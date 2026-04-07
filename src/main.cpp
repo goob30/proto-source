@@ -98,18 +98,18 @@ void screen_1(boolean isAudioPass = true, uint co2 = 30, uint fan = 100, uint hu
   char buf[32];
 
   snprintf(buf, sizeof(buf), "AUDIO PASSTHROUGH");
-  u8g2.drawStr(14, 63, "AUDIO PASSTHROUGH");
+  u8g2.drawStr(3, 64, buf);
 
-  u8g2.drawLine(0, 55, 127, 55);
+  u8g2.drawLine(0, 53, 127, 53);
 
   snprintf(buf, sizeof(buf), "CO2 %u%", co2);
-  u8g2.drawStr(0, 6, buf);
+  u8g2.drawStr(0, 11, buf);
 
   snprintf(buf, sizeof(buf), "FAN %u%", fan);
-  u8g2.drawStr(0, 26, buf);
+  u8g2.drawStr(0, 31, buf);
 
   snprintf(buf, sizeof(buf), "HUMIDITY %u%", hum);
-  u8g2.drawStr(0, 16, buf);
+  u8g2.drawStr(0, 21, buf);
 
   u8g2.sendBuffer();
 }
