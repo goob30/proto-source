@@ -4,7 +4,7 @@
 #include <Wire.h>
 #include <U8g2lib.h>
 #include <bitmaps.h>
-
+#include <clamp.h>
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 
 #define FONT_NCEN u8g2_font_ncenB08_tr
@@ -37,6 +37,17 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 #define RIGHT_NOSE_OFFSET  48
 
 #define BRIGHTNESS_LEVEL   4  // 0-15, increased from 1 for better visibility
+
+#define BTN_L0 32
+#define BTN_L1 33
+
+bool lastL0 = HIGH;
+bool lastL1 = HIGH;
+
+int selIndex = -1;
+int prevSelIndex = -1;
+unsigned long lastInputTime = 0;
+
 
 const int aDet = 33;
 const int SAMPLE_WINDOW = 50; // ms
@@ -72,9 +83,74 @@ void renderFace() {
   mxR.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
 }
 
+void screen_1(boolean isAudioPass = true, uint co2 = 30, uint fan = 100, uint hum = 30) {
+
+  if(selIndex >= 0 && (millis() - lastInputTime > 5000)) {
+    selIndex = -1;
+  }
+
+  u8g2.clearBuffer();
+  u8g2.setDrawColor(1);
+
+  u8g2.setFont(u8g2_font_7x13_tr);
+
+  char buf[32];
+
+  struct Row { const char* fmt; uint val; int y; int idx;};
+
+  Row rows[] = {
+    {"CO2 %u%%", co2, 11, 0},
+    {"FAN %u%%", fan, 21, 1},
+    {"HUMIDITY %u%%", hum, 31, 2},
+    {"SETTINGS", 0, 41, 3},
+  };
+
+  for (auto& row : rows) {
+    snprintf(buf, sizeof(buf), row.fmt, row.val);
+    if (selIndex == row.idx) {
+      u8g2.setDrawColor(1);
+      u8g2.drawBox(0, row.y - 11, 128, 13); // x, y, w, h
+      u8g2.setDrawColor(0);
+      u8g2.drawStr(0, row.y, buf);
+      u8g2.setDrawColor(1);
+    } else {
+      u8g2.setDrawColor(1);
+      u8g2.drawStr(0, row.y, buf);
+    }
+
+  }
+
+  u8g2.drawLine(0, 53, 127, 53);
+  snprintf(buf, sizeof(buf), "AUDIO PASSTHROUGH");
+  u8g2.drawStr(3, 64, buf);
+
+  u8g2.sendBuffer();
+}
+
+void handleInput(int8_t src, int listMax) {
+  prevSelIndex = selIndex;
+  switch (src) {
+    case BTN_L0:
+      selIndex = clamp(selIndex + 1, 0, listMax);
+      break;
+    case BTN_L1:
+      selIndex = clamp(selIndex - 1, 0, listMax);
+      
+      break;
+    default:
+      break;
+  }
+  lastInputTime = millis();
+  Serial.println(selIndex);
+}
+
 void setup() {
 
   pinMode(aDet, INPUT);
+
+  pinMode(BTN_L0, INPUT_PULLUP);
+  pinMode(BTN_L1, INPUT_PULLUP);
+
   // Initialize matrices
   mxL.begin();
   mxR.begin();
@@ -89,64 +165,53 @@ void setup() {
   u8g2.begin();
 }
 
-void screen_1(boolean isAudioPass = true, uint co2 = 30, uint fan = 100, uint hum = 30) {
-  u8g2.clearBuffer();
-  u8g2.setDrawColor(1);
-
-  u8g2.setFont(u8g2_font_7x13_tr);
-
-  char buf[32];
-
-  snprintf(buf, sizeof(buf), "AUDIO PASSTHROUGH");
-  u8g2.drawStr(3, 64, buf);
-
-  u8g2.drawLine(0, 53, 127, 53);
-
-  snprintf(buf, sizeof(buf), "CO2 %u%", co2);
-  u8g2.drawStr(0, 11, buf);
-
-  snprintf(buf, sizeof(buf), "FAN %u%", fan);
-  u8g2.drawStr(0, 31, buf);
-
-  snprintf(buf, sizeof(buf), "HUMIDITY %u%", hum);
-  u8g2.drawStr(0, 21, buf);
-
-  u8g2.sendBuffer();
-}
-
 void loop() {
   // Display
   screen_1();
 
+  bool curL0 = digitalRead(BTN_L0);
+  bool curL1 = digitalRead(BTN_L1);
+
+  if (lastL0 == HIGH && curL0 == LOW) {
+    handleInput(BTN_L0, 100);
+  }
+
+  if (lastL1 == HIGH && curL1 == LOW) {
+    handleInput(BTN_L1, 100);
+  }
+
+  lastL0 = curL0;
+  lastL1 = curL1;
+
   // Speech detection
-  unsigned long startMillis = millis();
-  int signalMax = 0;
-  int signalMin = 4095;
+  // unsigned long startMillis = millis();
+  // int signalMax = 0;
+  // int signalMin = 4095;
   
-  // Fast sampling window
-  while (millis() - startMillis < SAMPLE_WINDOW) {
-    int sample = analogRead(aDet);
-    if (sample > signalMax) signalMax = sample;
-    if (sample < signalMin) signalMin = sample;
-  }
+  // // Fast sampling window
+  // while (millis() - startMillis < SAMPLE_WINDOW) {
+  //   int sample = analogRead(aDet);
+  //   if (sample > signalMax) signalMax = sample;
+  //   if (sample < signalMin) signalMin = sample;
+  // }
   
-  int peakToPeak = signalMax - signalMin;
+  // int peakToPeak = signalMax - signalMin;
   
-  // Auto-adjust baseline during quiet periods
-  if (peakToPeak < 20) {
-    baseline = (baseline * 9 + ((signalMax + signalMin) / 2)) / 10;
-  }
+  // // Auto-adjust baseline during quiet periods
+  // if (peakToPeak < 20) {
+  //   baseline = (baseline * 9 + ((signalMax + signalMin) / 2)) / 10;
+  // }
   
-  // Detect speech (anything above ambient noise)
-  if (peakToPeak > threshold) {
-    Serial.print("SPEECH! P2P: ");
-    Serial.print(peakToPeak);
-    Serial.print(" | Baseline: ");
-    Serial.println(baseline);
+  // // Detect speech (anything above ambient noise)
+  // if (peakToPeak > threshold) {
+  //   Serial.print("SPEECH! P2P: ");
+  //   Serial.print(peakToPeak);
+  //   Serial.print(" | Baseline: ");
+  //   Serial.println(baseline);
     
-    // Your animation trigger here
-    // renderFace(true); 
-  }
+  //   // Your animation trigger here
+  //   // renderFace(true); 
+  // }
   
   delay(10);
 }
