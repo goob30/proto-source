@@ -36,7 +36,7 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 #define RIGHT_MOUTH_OFFSET 16
 #define RIGHT_NOSE_OFFSET  48
 
-#define BRIGHTNESS_LEVEL   4  // 0-15, increased from 1 for better visibility
+#define BRIGHTNESS_LEVEL   4  // 0-15, increased from 1
 
 #define BTN_L0 32
 #define BTN_L1 33
@@ -60,13 +60,12 @@ void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOf
   }
 }
 
-// Render all images to both displays using double-buffering
+
 void renderFace() {
-  // Use update(false) to disable auto-update for double-buffering
   mxL.control(MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
   mxR.control(MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
   
-  // Clear displays
+  // Clear displays. duurhuhrhhhghughuhuhu
   mxL.clear();
   mxR.clear();
 
@@ -78,7 +77,7 @@ void renderFace() {
   mxDrawBitmap(mxR, mouthR, 32, RIGHT_MOUTH_OFFSET);
   mxDrawBitmap(mxR, noseR, 8, RIGHT_NOSE_OFFSET);
   
-  // Atomic update - both displays update simultaneously
+  
   mxL.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
   mxR.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
 }
