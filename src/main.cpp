@@ -32,6 +32,12 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 
 #define BRIGHTNESS_LEVEL   4 
 
+
+int globalCo2 = 30;
+int globalFan = 100;
+int globalHum = 30;
+
+
 const int aDet = 33;
 const int SAMPLE_WINDOW = 50; 
 int baseline = 2048;
@@ -85,48 +91,27 @@ void setup() {
   Serial.begin(115200);
 
   u8g2.begin();
+
+  screen_switch(Screen::HOME);
 }
 
 
 void loop() {
-  
-  screen_switch(0);
-
   bool curL0 = digitalRead(BTN_L0);
   bool curL1 = digitalRead(BTN_L1);
+
+  
+  if (lastL0 == HIGH && curL0 == LOW) {
+    handleInput(BTN_L0, getMaxScreenIndex(g_currentScreen));
+  }
+  if (lastL1 == HIGH && curL1 == LOW) {
+    handleInput(BTN_L1, getMaxScreenIndex(g_currentScreen));
+  }
 
   lastL0 = curL0;
   lastL1 = curL1;
 
-  // Speech detection
-  // unsigned long startMillis = millis();
-  // int signalMax = 0;
-  // int signalMin = 4095;
-  
-  // // Fast sampling window
-  // while (millis() - startMillis < SAMPLE_WINDOW) {
-  //   int sample = analogRead(aDet);
-  //   if (sample > signalMax) signalMax = sample;
-  //   if (sample < signalMin) signalMin = sample;
-  // }
-  
-  // int peakToPeak = signalMax - signalMin;
-  
-  // // Auto-adjust baseline during quiet periods
-  // if (peakToPeak < 20) {
-  //   baseline = (baseline * 9 + ((signalMax + signalMin) / 2)) / 10;
-  // }
-  
-  // // Detect speech (anything above ambient noise)
-  // if (peakToPeak > threshold) {
-  //   Serial.print("SPEECH! P2P: ");
-  //   Serial.print(peakToPeak);
-  //   Serial.print(" | Baseline: ");
-  //   Serial.println(baseline);
-    
-  //   // Your animation trigger here
-  //   // renderFace(true); 
-  // }
-  
+  screen_switch(g_currentScreen); 
+
   delay(10);
 }
