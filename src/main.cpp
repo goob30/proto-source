@@ -33,15 +33,15 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 #define BRIGHTNESS_LEVEL   4 
 
 
+#define BTN_L0 32
+#define BTN_L1 33
+#define BTN_L2 25
+
+
 int globalCo2 = 30;
 int globalFan = 100;
 int globalHum = 30;
 
-
-const int aDet = 33;
-const int SAMPLE_WINDOW = 50; 
-int baseline = 2048;
-int threshold = 50;
 
 void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOffset) {
   for (uint8_t x = 0; x < width; x++) {
@@ -72,12 +72,16 @@ void renderFace() {
 }
 
 
-void setup() {
+bool lastL0 = HIGH;
+bool lastL1 = HIGH;
+bool lastL2 = HIGH;
 
-  pinMode(aDet, INPUT);
+
+void setup() {
 
   pinMode(BTN_L0, INPUT_PULLUP);
   pinMode(BTN_L1, INPUT_PULLUP);
+  pinMode(BTN_L2, INPUT_PULLUP);
 
   // Initialize matrices
   mxL.begin();
@@ -99,6 +103,7 @@ void setup() {
 void loop() {
   bool curL0 = digitalRead(BTN_L0);
   bool curL1 = digitalRead(BTN_L1);
+  bool curL2 = digitalRead(BTN_L2);
 
   
   if (lastL0 == HIGH && curL0 == LOW) {
@@ -107,9 +112,13 @@ void loop() {
   if (lastL1 == HIGH && curL1 == LOW) {
     handleInput(BTN_L1, getMaxScreenIndex(g_currentScreen));
   }
+  if (lastL2 == HIGH && curL2 == LOW) {
+    handleInput(BTN_L2, getMaxScreenIndex(g_currentScreen));
+  }
 
   lastL0 = curL0;
   lastL1 = curL1;
+  lastL2 = curL2;
 
   screen_switch(g_currentScreen); 
 
