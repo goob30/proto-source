@@ -1,10 +1,14 @@
+// TODO: implement telemetry reading
+//       move stuff into cpp
+//       unfuck the repo
+
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include <EEPROM.h>
 #include <Wire.h>
-#include <bitmaps.h>
-#include <clamp.h>
-#include <screens.h>
+#include "bitmaps.h"
+#include "clamp.h"
+#include "screens.h"
 
 // Matrix setup
 #define MAX_DEVICES 7
@@ -30,12 +34,11 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 #define RIGHT_MOUTH_OFFSET 16
 #define RIGHT_NOSE_OFFSET 48
 
-#define BRIGHTNESS_LEVEL 1 
-
-
 #define BTN_L0 32
 #define BTN_L1 33
 #define BTN_L2 25
+
+int g_brightnessLevel = 1;
 
 
 int globalCo2 = 30;
@@ -78,6 +81,9 @@ void renderFace() {
   
   mxL.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
   mxR.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
+
+  mxL.control(MD_MAX72XX::INTENSITY, g_brightnessLevel);
+  mxR.control(MD_MAX72XX::INTENSITY, g_brightnessLevel);
 }
 
 
@@ -108,8 +114,8 @@ void setup() {
   mxR.begin();
   
   // Set brightness (
-  mxL.control(MD_MAX72XX::INTENSITY, BRIGHTNESS_LEVEL);
-  mxR.control(MD_MAX72XX::INTENSITY, BRIGHTNESS_LEVEL);
+  mxL.control(MD_MAX72XX::INTENSITY, g_brightnessLevel);
+  mxR.control(MD_MAX72XX::INTENSITY, g_brightnessLevel);
   
   renderFace();
   Serial.begin(115200);
