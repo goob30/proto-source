@@ -1,3 +1,7 @@
+// TODO: implement clock face screen
+//       add toggleable top bar with clock, selectable telemetry (sensors, bt status)
+//       finish all settings options screens & implementation
+
 #include "screens.h"
 
 extern int currentExpression;
@@ -367,7 +371,7 @@ void settingsScreenSwitch(SettingsScreen sub) {
 }
 
 
-void screen_switch(Screen screen)
+void screenSwitch(Screen screen)
 {
     g_currentScreen = screen;
     switch (screen)

@@ -8,7 +8,7 @@
 #include <Wire.h>
 #include "bitmaps.h"
 #include "clamp.h"
-#include "screens.h"
+#include <screens.h>
 
 // Matrix setup
 #define MAX_DEVICES 7
@@ -122,7 +122,7 @@ void setup() {
 
   u8g2.begin();
 
-  screen_switch(Screen::HOME);
+  screenSwitch(Screen::HOME);
 }
 
 
@@ -145,7 +145,7 @@ void loop() {
   lastL1 = curL1;
   lastL2 = curL2;
 
-  screen_switch(g_currentScreen);
+  screenSwitch(g_currentScreen);
   updateTalking();
 
   delay(10);
