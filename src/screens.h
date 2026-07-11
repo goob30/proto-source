@@ -21,7 +21,7 @@ constexpr int BTN_L0 = 32;
 constexpr int BTN_L1 = 33;
 constexpr int BTN_L2 = 25;
 
-
+extern int currentExpression;
 
 bool isAudioPass = false;
 
@@ -226,7 +226,7 @@ void screen_settings_led()
         {"EXPRESSION", 2},
         {"VOICE DETECTION", 3},
     };
-    const int rowCount = 4;   // was 6 — must match the array above
+    const int rowCount = 4; // this is for the clamps in handleinput
 
     const int rectW = 108;
     const int rowH = 18;
@@ -241,7 +241,7 @@ void screen_settings_led()
     if (scrollTop > rowCount - visibleRows) scrollTop = rowCount - visibleRows;
     if (scrollTop < 0) scrollTop = 0;
 
-    // --- base list (always drawn, even under the popup) ---
+    // base listt
     for (int i = 0; i < visibleRows; i++)
     {
         int rowIdx = scrollTop + i;
@@ -278,7 +278,7 @@ void screen_settings_led()
         u8g2.drawStr(textX, textY, label);
 
         u8g2.setDrawColor(1);
-    }
+    } // thank you claude 
 
     int arrowCx = rectW + 12;
     if (scrollTop > 0)
@@ -292,7 +292,7 @@ void screen_settings_led()
         u8g2.drawLine(arrowCx, 60, arrowCx + 4, 54);
     }
 
-    // --- EXPRESSION popup overlay ---
+    // expression pop up
     if (g_ledMode == LedMode::EXPRESSION_POPUP)
     {
         const int popX = 10, popY = 10, popW = 108, popH = 44;
@@ -384,7 +384,7 @@ void handleInput(int src, int listMax)
     {
         if (src == BTN_L0) g_brightness = clamp(g_brightness + 1, 0, 15);
         else if (src == BTN_L1) g_brightness = clamp(g_brightness - 1, 0, 15);
-        else if (src == BTN_L2) g_ledMode = LedMode::LIST;   // confirm value, drop back to list nav
+        else if (src == BTN_L2) g_ledMode = LedMode::LIST; // confirm value, drop back to list nav ADD COMMAND HERE
         lastInputTime = millis();
         return;
     }
@@ -393,7 +393,7 @@ void handleInput(int src, int listMax)
     {
         if (src == BTN_L0) g_expressionSelIndex = clamp(g_expressionSelIndex + 1, 0, expressionCount - 1);
         else if (src == BTN_L1) g_expressionSelIndex = clamp(g_expressionSelIndex - 1, 0, expressionCount - 1);
-        else if (src == BTN_L2) g_ledMode = LedMode::LIST;   // confirm selection, close popup
+        else if (src == BTN_L2) g_ledMode = LedMode::LIST; currentExpression = g_expressionSelIndex; renderFace();
         lastInputTime = millis();
         return;
     }

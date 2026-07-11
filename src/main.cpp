@@ -23,14 +23,14 @@ MD_MAX72XX mxR = MD_MAX72XX(HARDWARE_TYPE, DATA_PINR, CLK_PINR, CS_PINR, MAX_DEV
 MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEVICES);
 
 
-#define LEFT_NOSE_OFFSET   0
-#define LEFT_MOUTH_OFFSET  8
-#define LEFT_EYE_OFFSET    40
-#define RIGHT_EYE_OFFSET   0
+#define LEFT_NOSE_OFFSET 0
+#define LEFT_MOUTH_OFFSET 8
+#define LEFT_EYE_OFFSET 40
+#define RIGHT_EYE_OFFSET 0
 #define RIGHT_MOUTH_OFFSET 16
-#define RIGHT_NOSE_OFFSET  48
+#define RIGHT_NOSE_OFFSET 48
 
-#define BRIGHTNESS_LEVEL   4 
+#define BRIGHTNESS_LEVEL 1 
 
 
 #define BTN_L0 32
@@ -43,11 +43,20 @@ int globalFan = 100;
 int globalHum = 30;
 
 
+bool isTalking = true;
+uint8_t mouthFrame = 0;
+unsigned long lastMouthUpdate = 0;
+const unsigned long TALK_INTERVAL = 100;
+
+
 void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOffset) {
   for (uint8_t x = 0; x < width; x++) {
     mx.setColumn(x + xOffset, bmp[x]);
   }
 }
+
+
+int currentExpression = 0;
 
 
 void renderFace() {
@@ -59,16 +68,27 @@ void renderFace() {
   mxR.clear();
 
   mxDrawBitmap(mxL, noseL, 8, LEFT_NOSE_OFFSET);
-  mxDrawBitmap(mxL, mouthL, 32, LEFT_MOUTH_OFFSET);
-  mxDrawBitmap(mxL, eyeL_1, 16, LEFT_EYE_OFFSET);
+  mxDrawBitmap(mxL, mouthFramesL[mouthFrame], 32, LEFT_MOUTH_OFFSET);
+  mxDrawBitmap(mxL, eyeFramesL[currentExpression], 16, LEFT_EYE_OFFSET);
 
-  mxDrawBitmap(mxR, eyeR_1, 16, RIGHT_EYE_OFFSET);
-  mxDrawBitmap(mxR, mouthR, 32, RIGHT_MOUTH_OFFSET);
+  mxDrawBitmap(mxR, eyeFramesR[currentExpression], 16, RIGHT_EYE_OFFSET);
+  mxDrawBitmap(mxR, mouthFramesR[mouthFrame], 32, RIGHT_MOUTH_OFFSET);
   mxDrawBitmap(mxR, noseR, 8, RIGHT_NOSE_OFFSET);
   
   
   mxL.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
   mxR.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
+}
+
+
+void updateTalking() {
+  if (!isTalking) return;
+
+  if (millis() - lastMouthUpdate >= TALK_INTERVAL) {
+    lastMouthUpdate = millis();
+    mouthFrame = (mouthFrame + 1) % NUM_MOUTH_FRAMES;
+    renderFace();
+  }
 }
 
 
@@ -105,7 +125,6 @@ void loop() {
   bool curL1 = digitalRead(BTN_L1);
   bool curL2 = digitalRead(BTN_L2);
 
-  
   if (lastL0 == HIGH && curL0 == LOW) {
     handleInput(BTN_L0, getMaxScreenIndex(g_currentScreen));
   }
@@ -120,7 +139,8 @@ void loop() {
   lastL1 = curL1;
   lastL2 = curL2;
 
-  screen_switch(g_currentScreen); 
+  screen_switch(g_currentScreen);
+  updateTalking();
 
   delay(10);
 }
