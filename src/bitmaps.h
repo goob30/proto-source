@@ -23,8 +23,8 @@ const uint8_t eyeR_1[16] = {
   0x3F, 0x3F, 0x3F, 0x3F, 0x1F, 0x1F, 0x0F, 0x03
 };
 
-const uint8_t* eyeFramesL[] = { eyeL, eyeL_1 };
-const uint8_t* eyeFramesR[] = { eyeR, eyeR_1 };
+static const uint8_t* eyeFramesL[] = { eyeL, eyeL_1 };
+static const uint8_t* eyeFramesR[] = { eyeR, eyeR_1 };
 
 const uint8_t mouthL[32] = {
   0x1C, 0x1E, 0x13, 0x16, 0x16, 0x1C, 0x1C, 0x18,
@@ -68,8 +68,8 @@ const uint8_t mouthR_2[32] = {
   0x1E, 0x1C, 0x1C, 0x16, 0x16, 0x13, 0x1E, 0x1C
 };
 
-const uint8_t* mouthFramesL[] = { mouthL, mouthL_1, mouthL_2 };
-const uint8_t* mouthFramesR[] = { mouthR, mouthR_1, mouthR_2 };
+static const uint8_t* mouthFramesL[] = { mouthL, mouthL_1, mouthL_2 };
+static const uint8_t* mouthFramesR[] = { mouthR, mouthR_1, mouthR_2 };
 #define NUM_MOUTH_FRAMES 3
 
 const uint8_t noseL[8] = {

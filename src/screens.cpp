@@ -8,18 +8,14 @@ extern int currentExpression;
 
 extern int g_brightnessLevel;
 
-bool isAudioPass = false;
+extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
+
+
+bool g_isAudioPass = false;
 
 int selIndex = -1;
 int prevSelIndex = -1;
 unsigned long lastInputTime = 0;
-
-enum class Screen : int
-{
-    HOME,
-    SETTINGS,
-    TELEMETRY,
-};
 
 enum class SettingsScreen : int
 {
@@ -31,15 +27,17 @@ enum class SettingsScreen : int
     STYLE,
 };
 
-enum class LedSettingsScreenMode : int { LIST, EDIT_BRIGHTNESS, EXPRESSION_POPUP };
+enum class LedSettingsScreenMode : int {LIST, EDIT_BRIGHTNESS, EXPRESSION_POPUP, EDIT_ISVOICEDETECTION}; // list is when you are only scrolling, not modifying
 LedSettingsScreenMode g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // sets the active enum index
 
-enum class ClockMode : int {STD, BMP};
+enum class ClockMode : int {STD, BMP, SEG};
 ClockMode g_clockMode = ClockMode::STD;
 
 int g_expressionSelIndex = 0;
 
-const char* expressionList[] = { "DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4" };
+bool isVoiceDetection = false;
+
+const char* expressionList[] = {"DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4"};
 const int expressionCount = 5; // not starting at 0, total count
 
 Screen g_currentScreen = Screen::HOME;
@@ -59,6 +57,7 @@ void screen_home(boolean isAudioPass, int co2, int fan, int hum)
     if (selIndex >= 0 && (millis() - lastInputTime > 5000))
     {
         selIndex = -1;
+        
     }
 
     u8g2.clearBuffer();
@@ -197,6 +196,7 @@ void screen_settings_led()
     if (selIndex >= 0 && (millis() - lastInputTime > 5000))
     {
         selIndex = -1;
+        g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
     }
 
     u8g2.clearBuffer();
@@ -238,12 +238,19 @@ void screen_settings_led()
         char buf[24];
         const char *label = row.label;
 
-        // BRIGHTNESS row swaps to "- 4 +" while editing
+        
         if (row.idx == 1 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
         {
             snprintf(buf, sizeof(buf), "-   %d   +", g_brightnessLevel);
             label = buf;
         }
+
+        if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
+        {
+            label = ""; // blank out "VOICE DETECTION"; drawn as custom glyph+text block below instead
+        }
+        
+
 
         u8g2.setDrawColor(1);
         if (selected)
@@ -260,6 +267,39 @@ void screen_settings_led()
         int textX = (rectW - textW) / 2;
         int textY = y + rowH / 2 + 4;
         u8g2.drawStr(textX, textY, label);
+
+        if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
+        {
+            // measure whole block ("O ON      ● OFF") so it centers like other rows
+            const int glyphW = 12;
+            const char *onStr = "ON";
+            const char *offStr = "OFF";
+            const int gap = u8g2.getStrWidth("      "); // spacing between ON and OFF groups
+
+            u8g2.setFont(u8g2_font_7x13_tr);
+            int onW = u8g2.getStrWidth(onStr);
+            int offW = u8g2.getStrWidth(offStr);
+
+            int blockW = glyphW + onW + gap + glyphW + offW;
+            int cx = (rectW - blockW) / 2;
+            int gy = textY;
+
+            // draw color is already set correctly by the selected/not-selected branch above
+            u8g2.setFont(u8g2_font_7x13_t_symbols);
+            u8g2.drawGlyph(cx, gy, isVoiceDetection ? 0x25CF : 0x25CB);
+            cx += glyphW;
+
+            u8g2.setFont(u8g2_font_7x13_tr);
+            u8g2.drawStr(cx, gy, onStr);
+            cx += onW + gap;
+
+            u8g2.setFont(u8g2_font_7x13_t_symbols);
+            u8g2.drawGlyph(cx, gy, !isVoiceDetection ? 0x25CF : 0x25CB);
+            cx += glyphW;
+
+            u8g2.setFont(u8g2_font_7x13_tr);
+            u8g2.drawStr(cx, gy, offStr);
+        }
 
         u8g2.setDrawColor(1);
     } // thank you claude 
@@ -312,6 +352,17 @@ void screen_settings_led()
 }
 
 
+void screen_clock_face() {
+    if (selIndex >= 0 && (millis() - lastInputTime > 5000))
+    {
+        selIndex = -1;
+    }
+
+    u8g2.clearBuffer();
+    u8g2.setDrawColor(1);
+}
+
+
 Screen getScreenForSelection(Screen current, int index) {
     switch(current) {
         case Screen::HOME:
@@ -361,7 +412,7 @@ int getMaxScreenIndex(Screen screen)
 
 void settingsScreenSwitch(SettingsScreen sub) {
     switch (sub) {
-        case SettingsScreen::ROOT: screen_settings(isAudioPass); break;
+        case SettingsScreen::ROOT: screen_settings(g_isAudioPass); break;
         case SettingsScreen::CONTROLS: break;
         case SettingsScreen::LED: screen_settings_led(); break;
         case SettingsScreen::MISC: break;
@@ -377,7 +428,7 @@ void screenSwitch(Screen screen)
     switch (screen)
     {
     case Screen::HOME:
-        screen_home(isAudioPass, globalCo2, globalFan, globalHum);
+        screen_home(g_isAudioPass, globalCo2, globalFan, globalHum);
         break;
     case Screen::SETTINGS:
         settingsScreenSwitch(g_currentSettingsScreen);
@@ -411,6 +462,20 @@ void handleInput(int src, int listMax)
         return;
     }
 
+    if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
+    {
+        if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
+        {
+            if (src == BTN_L0 || src == BTN_L1) isVoiceDetection = !isVoiceDetection;
+            else if (src == BTN_L2) {
+                g_isAudioPass = isVoiceDetection;
+                g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
+            }
+            lastInputTime = millis();
+            return;
+        }
+    }
+
     switch (src)
     {
     case BTN_L0:
@@ -431,10 +496,14 @@ void handleInput(int src, int listMax)
             } else if (g_currentSettingsScreen == SettingsScreen::ROOT) {
                 g_currentSettingsScreen = getSettingsScreenForSelection(g_currentSettingsScreen, selIndex);
                 selIndex = -1;
+            // begin LED screen settings segment
             } else if (g_currentSettingsScreen == SettingsScreen::LED) {
-                if (selIndex == 1) { g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_BRIGHTNESS; }
-                else if (selIndex == 2) { g_LedSettingsScreenMode = LedSettingsScreenMode::EXPRESSION_POPUP; }
-            }
+                if (selIndex == 1) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_BRIGHTNESS;}
+                else if (selIndex == 2) {g_LedSettingsScreenMode = LedSettingsScreenMode::EXPRESSION_POPUP;}
+                else if (selIndex == 3) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_ISVOICEDETECTION; isVoiceDetection = g_isAudioPass; }
+            } 
+            
+            
         } else {
             Screen t = getScreenForSelection(g_currentScreen, selIndex);
             if (t != g_currentScreen) {

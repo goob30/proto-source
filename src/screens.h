@@ -6,12 +6,7 @@
 #include <U8g2lib.h>
 #include <bitmaps.h>
 #include <clamp.h>
-
-extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-
-enum class Screen : int { HOME, SETTINGS, TELEMETRY };
-
-extern Screen g_currentScreen;    
+ 
 
 #define FONT_NCEN u8g2_font_ncenB08_tr
 #define FONT_MANIAC u8g2_font_maniac_te
@@ -37,6 +32,7 @@ enum class Screen : int
     TELEMETRY,
 };
 
+extern Screen g_currentScreen;   
 
 void handleInput(int src, int listMax);
 

@@ -8,7 +8,7 @@
 #include <Wire.h>
 #include "bitmaps.h"
 #include "clamp.h"
-#include <screens.h>
+#include "screens.h"
 
 // Matrix setup
 #define MAX_DEVICES 7
@@ -22,6 +22,8 @@
 #define CS_PINL     13
 
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
+
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 
 MD_MAX72XX mxR = MD_MAX72XX(HARDWARE_TYPE, DATA_PINR, CLK_PINR, CS_PINR, MAX_DEVICES);
 MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEVICES);
@@ -38,7 +40,7 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 #define BTN_L1 33
 #define BTN_L2 25
 
-int g_brightnessLevel = 1;
+int g_brightnessLevel = 0;
 
 
 int globalCo2 = 30;
