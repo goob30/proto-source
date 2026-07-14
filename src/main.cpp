@@ -53,6 +53,8 @@ uint8_t mouthFrame = 0;
 unsigned long lastMouthUpdate = 0;
 const unsigned long TALK_INTERVAL = 100;
 
+unsigned long previousMillis = 0;
+
 
 void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOffset) {
   for (uint8_t x = 0; x < width; x++) {
@@ -149,6 +151,9 @@ void loop() {
 
   screenSwitch(g_currentScreen);
   updateTalking();
+
+
+  
 
   delay(10);
 }

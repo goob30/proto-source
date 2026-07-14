@@ -24,12 +24,14 @@ constexpr int BTN_L2 = 25;
 
 extern int currentExpression;
 extern int g_brightnessLevel;
+extern bool g_isVoiceDetection; 
 
 enum class Screen : int
 {
     HOME,
     SETTINGS,
     TELEMETRY,
+    CLOCK,
 };
 
 extern Screen g_currentScreen;   

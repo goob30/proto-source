@@ -3,19 +3,21 @@
 //       finish all settings options screens & implementation
 
 #include "screens.h"
+#include "timer.h"
+
 
 extern int currentExpression;
 
 extern int g_brightnessLevel;
 
+extern bool g_isVoiceDetection;
+
 extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
-
-
-bool g_isAudioPass = false;
 
 int selIndex = -1;
 int prevSelIndex = -1;
 unsigned long lastInputTime = 0;
+
 
 enum class SettingsScreen : int
 {
@@ -27,15 +29,27 @@ enum class SettingsScreen : int
     STYLE,
 };
 
+
 enum class LedSettingsScreenMode : int {LIST, EDIT_BRIGHTNESS, EXPRESSION_POPUP, EDIT_ISVOICEDETECTION}; // list is when you are only scrolling, not modifying
 LedSettingsScreenMode g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // sets the active enum index
 
 enum class ClockMode : int {STD, BMP, SEG};
 ClockMode g_clockMode = ClockMode::STD;
 
+
+const char* clockStyleList[] = {"STANDARD", "RETRO", "CHUNKY"};
+const uint8_t* clockStyleFont[] = {
+    u8g2_font_logisoso28_tn,
+    u8g2_font_VCR_OSD_mn,
+    u8g2_font_freedoomr25_tn
+};
+
+
+const int clockStyleCount = 3;
+
 int g_expressionSelIndex = 0;
 
-bool isVoiceDetection = false;
+bool g_isVoiceDetection = false;
 
 const char* expressionList[] = {"DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4"};
 const int expressionCount = 5; // not starting at 0, total count
@@ -52,9 +66,73 @@ int getMaxScreenIndex(Screen screen);
 void settingsScreenSwitch(SettingsScreen sub);
 
 
+// ***** SHARED scrollable settings-list styling, usable by any screen *****
+const int rectW = 108;
+const int rowH = 18;
+const int rowGap = 4;
+const int visibleRows = 3;
+const int listTop = 2;
+
+
+struct ListRow
+{
+    const char *label;
+    int idx;
+};
+
+int updateScrollTop(int sel, int scrollTop, int rowCount)
+{
+    if (sel < scrollTop) scrollTop = sel;
+    if (sel > scrollTop + visibleRows - 1) scrollTop = sel - visibleRows + 1;
+    if (scrollTop > rowCount - visibleRows) scrollTop = rowCount - visibleRows;
+    if (scrollTop < 0) scrollTop = 0;
+    return scrollTop;
+}
+
+int drawListRow(int rowSlot, const char *label, bool selected)
+{
+    int y = listTop + rowSlot * (rowH + rowGap);
+
+    u8g2.setDrawColor(1);
+    if (selected)
+    {
+        u8g2.drawRBox(0, y, rectW, rowH, 4);
+        u8g2.setDrawColor(0);
+    }
+    else
+    {
+        u8g2.drawRFrame(0, y, rectW, rowH, 4);
+    }
+
+    int textW = u8g2.getStrWidth(label);
+    int textX = (rectW - textW) / 2;
+    int textY = y + rowH / 2 + 4;
+    u8g2.drawStr(textX, textY, label);
+
+    u8g2.setDrawColor(1);
+    return textY; // handed back so callers can align custom overlays (e.g. glyph rows) to the same baseline
+}
+
+void drawScrollArrows(int scrollTop, int rowCount)
+{
+    int arrowCx = rectW + 12;
+
+    if (scrollTop > 0)
+    {
+        u8g2.drawLine(arrowCx - 4, 10, arrowCx, 4);
+        u8g2.drawLine(arrowCx, 4, arrowCx + 4, 10);
+    }
+    if (scrollTop + visibleRows < rowCount)
+    {
+        u8g2.drawLine(arrowCx - 4, 54, arrowCx, 60);
+        u8g2.drawLine(arrowCx, 60, arrowCx + 4, 54);
+    }
+}
+
+
 void screen_home(boolean isAudioPass, int co2, int fan, int hum)
 {
-    if (selIndex >= 0 && (millis() - lastInputTime > 5000))
+    if (selIndex >= 0 && (millis() - lastInputTime >= 5000))
     {
         selIndex = -1;
         
@@ -76,7 +154,7 @@ void screen_home(boolean isAudioPass, int co2, int fan, int hum)
     };
 
     Row rows[] = {
-        {"CO2 %u%%", co2, 11, 0},
+        {"CLOCK", 0, 11, 0},
         {"FAN %u%%", fan, 23, 1},
         {"HUMIDITY %u%%", hum, 35, 2},
         {"SETTINGS", 0, 47, 3},
@@ -100,11 +178,26 @@ void screen_home(boolean isAudioPass, int co2, int fan, int hum)
         }
     }
 
-    snprintf(buf, sizeof(buf), "AUDIO PASSTHROUGH");
-    u8g2.drawStr(3, 64, buf);
+    u8g2.drawStr(3, 64, "AUDIO PASSTHROUGH");
 
     u8g2.sendBuffer();
 }
+
+
+void screen_clock_face() {
+    u8g2.clearBuffer();
+    u8g2.setDrawColor(1);
+
+    u8g2.setFont(clockStyleFont[static_cast<int>(g_clockMode)]);
+    int textW = u8g2.getStrWidth("16:42");
+    int textH = u8g2.getMaxCharHeight();
+    int textX = (128 - textW) / 2;
+    int textY = (64 + textH) / 2;
+    u8g2.drawStr(textX, textY, "16:42");
+
+    u8g2.sendBuffer();
+}
+
 
 void screen_settings(boolean isAudioPass)
 {
@@ -117,13 +210,7 @@ void screen_settings(boolean isAudioPass)
     u8g2.setDrawColor(1);
     u8g2.setFont(u8g2_font_7x13_tr);
 
-    struct Row
-    {
-        const char *label;
-        int idx;
-    };
-
-    Row rows[] = {
+    ListRow rows[] = {
         {"< RETURN  ", 0},
         {"CONTROLS", 1},
         {"LED", 2},
@@ -133,59 +220,21 @@ void screen_settings(boolean isAudioPass)
     };
     const int rowCount = 6;
 
-    const int rectW = 108;
-    const int rowH = 18;
-    const int rowGap = 4;
-    const int visibleRows = 3;
-    const int listTop = 2;
-
     static int scrollTop = 0;
     int sel = (selIndex >= 0) ? selIndex : 0;
-    if (sel < scrollTop) scrollTop = sel;
-    if (sel > scrollTop + visibleRows - 1) scrollTop = sel - visibleRows + 1;
-    if (scrollTop > rowCount - visibleRows) scrollTop = rowCount - visibleRows;
-    if (scrollTop < 0) scrollTop = 0;
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
 
     for (int i = 0; i < visibleRows; i++)
     {
         int rowIdx = scrollTop + i;
         if (rowIdx >= rowCount) break;
 
-        Row &row = rows[rowIdx];
-        int y = listTop + i * (rowH + rowGap);
+        ListRow &row = rows[rowIdx];
         bool selected = (selIndex == row.idx);
-
-        u8g2.setDrawColor(1);
-        if (selected)
-        {
-            u8g2.drawRBox(0, y, rectW, rowH, 4);
-            u8g2.setDrawColor(0);
-        }
-        else
-        {
-            u8g2.drawRFrame(0, y, rectW, rowH, 4);
-        }
-
-        int textW = u8g2.getStrWidth(row.label);
-        int textX = (rectW - textW) / 2;
-        int textY = y + rowH / 2 + 4;
-        u8g2.drawStr(textX, textY, row.label);
-
-        u8g2.setDrawColor(1);
+        drawListRow(i, row.label, selected);
     }
 
-    int arrowCx = rectW + 12;
-
-    if (scrollTop > 0)
-    {
-        u8g2.drawLine(arrowCx - 4, 10, arrowCx, 4);
-        u8g2.drawLine(arrowCx, 4, arrowCx + 4, 10);
-    }
-    if (scrollTop + visibleRows < rowCount)
-    {
-        u8g2.drawLine(arrowCx - 4, 54, arrowCx, 60);
-        u8g2.drawLine(arrowCx, 60, arrowCx + 4, 54);
-    }
+    drawScrollArrows(scrollTop, rowCount);
 
     u8g2.sendBuffer();
 }
@@ -203,8 +252,7 @@ void screen_settings_led()
     u8g2.setDrawColor(1);
     u8g2.setFont(u8g2_font_7x13_tr);
 
-    struct Row { const char *label; int idx; };
-    Row rows[] = {
+    ListRow rows[] = {
         {"< RETURN", 0},
         {"BRIGHTNESS", 1},
         {"EXPRESSION", 2},
@@ -212,18 +260,9 @@ void screen_settings_led()
     };
     const int rowCount = 4; // this is for the clamps in handleinput
 
-    const int rectW = 108;
-    const int rowH = 18;
-    const int rowGap = 4;
-    const int visibleRows = 3;
-    const int listTop = 2;
-
     static int scrollTop = 0;
     int sel = (selIndex >= 0) ? selIndex : 0;
-    if (sel < scrollTop) scrollTop = sel;
-    if (sel > scrollTop + visibleRows - 1) scrollTop = sel - visibleRows + 1;
-    if (scrollTop > rowCount - visibleRows) scrollTop = rowCount - visibleRows;
-    if (scrollTop < 0) scrollTop = 0;
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
 
     // base listt
     for (int i = 0; i < visibleRows; i++)
@@ -231,8 +270,7 @@ void screen_settings_led()
         int rowIdx = scrollTop + i;
         if (rowIdx >= rowCount) break;
 
-        Row &row = rows[rowIdx];
-        int y = listTop + i * (rowH + rowGap);
+        ListRow &row = rows[rowIdx];
         bool selected = (selIndex == row.idx);
 
         char buf[24];
@@ -251,30 +289,15 @@ void screen_settings_led()
         }
         
 
-
-        u8g2.setDrawColor(1);
-        if (selected)
-        {
-            u8g2.drawRBox(0, y, rectW, rowH, 4);
-            u8g2.setDrawColor(0);
-        }
-        else
-        {
-            u8g2.drawRFrame(0, y, rectW, rowH, 4);
-        }
-
-        int textW = u8g2.getStrWidth(label);
-        int textX = (rectW - textW) / 2;
-        int textY = y + rowH / 2 + 4;
-        u8g2.drawStr(textX, textY, label);
+        int textY = drawListRow(i, label, selected);
 
         if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
         {
-            // measure whole block ("O ON      ● OFF") so it centers like other rows
+            // measure whole block so it centers like other rows
             const int glyphW = 12;
             const char *onStr = "ON";
             const char *offStr = "OFF";
-            const int gap = u8g2.getStrWidth("      "); // spacing between ON and OFF groups
+            const int gap = u8g2.getStrWidth("      "); // spacing between On and off groups
 
             u8g2.setFont(u8g2_font_7x13_tr);
             int onW = u8g2.getStrWidth(onStr);
@@ -286,7 +309,7 @@ void screen_settings_led()
 
             // draw color is already set correctly by the selected/not-selected branch above
             u8g2.setFont(u8g2_font_7x13_t_symbols);
-            u8g2.drawGlyph(cx, gy, isVoiceDetection ? 0x25CF : 0x25CB);
+            u8g2.drawGlyph(cx, gy, g_isVoiceDetection ? 0x25CF : 0x25CB);
             cx += glyphW;
 
             u8g2.setFont(u8g2_font_7x13_tr);
@@ -294,7 +317,7 @@ void screen_settings_led()
             cx += onW + gap;
 
             u8g2.setFont(u8g2_font_7x13_t_symbols);
-            u8g2.drawGlyph(cx, gy, !isVoiceDetection ? 0x25CF : 0x25CB);
+            u8g2.drawGlyph(cx, gy, !g_isVoiceDetection ? 0x25CF : 0x25CB);
             cx += glyphW;
 
             u8g2.setFont(u8g2_font_7x13_tr);
@@ -304,19 +327,9 @@ void screen_settings_led()
         u8g2.setDrawColor(1);
     } // thank you claude 
 
-    int arrowCx = rectW + 12;
-    if (scrollTop > 0)
-    {
-        u8g2.drawLine(arrowCx - 4, 10, arrowCx, 4);
-        u8g2.drawLine(arrowCx, 4, arrowCx + 4, 10);
-    }
-    if (scrollTop + visibleRows < rowCount)
-    {
-        u8g2.drawLine(arrowCx - 4, 54, arrowCx, 60);
-        u8g2.drawLine(arrowCx, 60, arrowCx + 4, 54);
-    }
+    drawScrollArrows(scrollTop, rowCount);
 
-    // expression pop up
+    // expression pop up hurrr durrr
     if (g_LedSettingsScreenMode == LedSettingsScreenMode::EXPRESSION_POPUP)
     {
         const int popX = 10, popY = 10, popW = 108, popH = 44;
@@ -352,21 +365,11 @@ void screen_settings_led()
 }
 
 
-void screen_clock_face() {
-    if (selIndex >= 0 && (millis() - lastInputTime > 5000))
-    {
-        selIndex = -1;
-    }
-
-    u8g2.clearBuffer();
-    u8g2.setDrawColor(1);
-}
-
-
 Screen getScreenForSelection(Screen current, int index) {
     switch(current) {
         case Screen::HOME:
             if (index == 3) return Screen::SETTINGS;
+            if (index == 0) return Screen::CLOCK;
             return current;
         case Screen::SETTINGS:
             if (index == 0) return Screen::HOME;
@@ -412,7 +415,7 @@ int getMaxScreenIndex(Screen screen)
 
 void settingsScreenSwitch(SettingsScreen sub) {
     switch (sub) {
-        case SettingsScreen::ROOT: screen_settings(g_isAudioPass); break;
+        case SettingsScreen::ROOT: screen_settings(g_isVoiceDetection); break;
         case SettingsScreen::CONTROLS: break;
         case SettingsScreen::LED: screen_settings_led(); break;
         case SettingsScreen::MISC: break;
@@ -428,11 +431,13 @@ void screenSwitch(Screen screen)
     switch (screen)
     {
     case Screen::HOME:
-        screen_home(g_isAudioPass, globalCo2, globalFan, globalHum);
+        screen_home(g_isVoiceDetection, globalCo2, globalFan, globalHum);
         break;
     case Screen::SETTINGS:
         settingsScreenSwitch(g_currentSettingsScreen);
         break;
+    case Screen::CLOCK:
+        screen_clock_face();
     }
 }
 
@@ -464,16 +469,21 @@ void handleInput(int src, int listMax)
 
     if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
     {
-        if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
-        {
-            if (src == BTN_L0 || src == BTN_L1) isVoiceDetection = !isVoiceDetection;
-            else if (src == BTN_L2) {
-                g_isAudioPass = isVoiceDetection;
-                g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
-            }
-            lastInputTime = millis();
-            return;
+        if (src == BTN_L0 || src == BTN_L1) g_isVoiceDetection = !g_isVoiceDetection;
+        else if (src == BTN_L2) {
+            g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
         }
+        lastInputTime = millis();
+        return;
+    }
+
+    if (g_currentScreen == Screen::CLOCK)
+    {
+        if (src == BTN_L0) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) + 1, 0, clockStyleCount - 1));
+        else if (src == BTN_L1) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) - 1, 0, clockStyleCount - 1));
+        else if (src == BTN_L2) g_currentScreen = Screen::HOME;
+        lastInputTime = millis();
+        return;
     }
 
     switch (src)
@@ -500,7 +510,7 @@ void handleInput(int src, int listMax)
             } else if (g_currentSettingsScreen == SettingsScreen::LED) {
                 if (selIndex == 1) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_BRIGHTNESS;}
                 else if (selIndex == 2) {g_LedSettingsScreenMode = LedSettingsScreenMode::EXPRESSION_POPUP;}
-                else if (selIndex == 3) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_ISVOICEDETECTION; isVoiceDetection = g_isAudioPass; }
+                else if (selIndex == 3) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_ISVOICEDETECTION;}
             } 
             
             
