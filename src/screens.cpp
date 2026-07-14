@@ -31,17 +31,22 @@ enum class SettingsScreen : int
 
 
 enum class LedSettingsScreenMode : int {LIST, EDIT_BRIGHTNESS, EXPRESSION_POPUP, EDIT_ISVOICEDETECTION}; // list is when you are only scrolling, not modifying
-LedSettingsScreenMode g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // sets the active enum index
+LedSettingsScreenMode g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // sets the active enum index to not be changing any settings
+
+enum class StyleSettingsScreenMode : int {LIST, EDIT_ISTOPBARENABLED};
+StyleSettingsScreenMode g_StyleSettingsScreenMode = StyleSettingsScreenMode::LIST;
+
 
 enum class ClockMode : int {STD, BMP, SEG};
 ClockMode g_clockMode = ClockMode::STD;
 
 
-const char* clockStyleList[] = {"STANDARD", "RETRO", "CHUNKY"};
+const char* clockStyleList[] = {"STANDARD", "RETRO", "CHUNKY", "SEGMENT"};
 const uint8_t* clockStyleFont[] = {
     u8g2_font_logisoso28_tn,
     u8g2_font_VCR_OSD_mn,
-    u8g2_font_freedoomr25_tn
+    u8g2_font_freedoomr25_tn,
+    u8g2_font_7Segments_26x42_mn
 };
 
 
@@ -77,6 +82,14 @@ const int listTop = 2;
 struct ListRow
 {
     const char *label;
+    int idx;
+};
+
+struct ValueRow
+{
+    const char *fmt;
+    int val;
+    int y;
     int idx;
 };
 
@@ -130,6 +143,9 @@ void drawScrollArrows(int scrollTop, int rowCount)
 }
 
 
+
+
+
 void screen_home(boolean isAudioPass, int co2, int fan, int hum)
 {
     if (selIndex >= 0 && (millis() - lastInputTime >= 5000))
@@ -143,45 +159,40 @@ void screen_home(boolean isAudioPass, int co2, int fan, int hum)
 
     u8g2.setFont(u8g2_font_7x13_tr);
 
-    char buf[32];
-
-    struct Row
-    {
-        const char *fmt;
-        int val;
-        int y;
-        int idx;
+    ListRow rows[] = {
+        {"CLOCK", 0},
+        {"LEDS"},
+        {"SENSORS"},
+        {"SETTINGS", 3},
     };
 
-    Row rows[] = {
-        {"CLOCK", 0, 11, 0},
-        {"FAN %u%%", fan, 23, 1},
-        {"HUMIDITY %u%%", hum, 35, 2},
-        {"SETTINGS", 0, 47, 3},
-    };
+    const int rowCount = 4;
 
-    for (auto &row : rows)
+    static int scrollTop = 0;
+    int sel = (selIndex >= 0) ? selIndex : 0;
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
+
+    for (int i = 0; i < visibleRows; i++)
     {
-        snprintf(buf, sizeof(buf), row.fmt, row.val);
-        if (selIndex == row.idx)
-        {
-            u8g2.setDrawColor(1);
-            u8g2.drawBox(0, row.y - 11, 128, 13); // x, y, w, h
-            u8g2.setDrawColor(0);
-            u8g2.drawStr(0, row.y, buf);
-            u8g2.setDrawColor(1);
-        }
-        else
-        {
-            u8g2.setDrawColor(1);
-            u8g2.drawStr(0, row.y, buf);
-        }
+        int rowIdx = scrollTop + i;
+        if (rowIdx >= rowCount) break;
+
+        ListRow &row = rows[rowIdx];
+        bool selected = (selIndex == row.idx);
+        drawListRow(i, row.label, selected);
     }
+
+    drawScrollArrows(scrollTop, rowCount);
 
     u8g2.drawStr(3, 64, "AUDIO PASSTHROUGH");
 
     u8g2.sendBuffer();
 }
+
+
+
+
+
 
 
 void screen_clock_face() {
@@ -199,6 +210,17 @@ void screen_clock_face() {
 }
 
 
+
+
+
+
+
+
+
+
+// ***********************          ***********************
+// *********************** SETTINGS ***********************
+// ***********************          ***********************
 void screen_settings(boolean isAudioPass)
 {
     if (selIndex >= 0 && (millis() - lastInputTime > 5000))
@@ -273,14 +295,14 @@ void screen_settings_led()
         ListRow &row = rows[rowIdx];
         bool selected = (selIndex == row.idx);
 
-        char buf[24];
+        String buf;
         const char *label = row.label;
 
         
         if (row.idx == 1 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
         {
-            snprintf(buf, sizeof(buf), "-   %d   +", g_brightnessLevel);
-            label = buf;
+            buf = "-   " + String(g_brightnessLevel) + "   +";
+            label = buf.c_str();
         }
 
         if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
@@ -365,6 +387,50 @@ void screen_settings_led()
 }
 
 
+
+void screen_settings_style() {
+    if (selIndex >= 0 && (millis() - lastInputTime > 5000)) {
+        selIndex = -1;
+        g_StyleSettingsScreenMode = StyleSettingsScreenMode::LIST;
+    }
+
+    u8g2.clearBuffer();
+    u8g2.setDrawColor(1);
+    u8g2.setFont(u8g2_font_7x13_tr);
+
+    ListRow rows[] = {
+        {"< RETURN", 0},
+        {"Enable top bar", 0}
+    };
+    const int rowCount = 2;
+    static int scrollTop = 0;
+    int sel = (selIndex >= 0) ? selIndex : 0;
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
+    
+    for (int i = 0; i < visibleRows; i++) {
+        int rowidx = scrollTop + i;
+        if (rowidx >= rowCount) break;
+
+        ListRow &row = rows[rowidx];
+        bool selected = (selIndex == row.idx);
+
+        
+    }
+
+}
+// *********************** END SETTINGS ***********************
+
+
+
+
+
+
+
+
+
+
+
+
 Screen getScreenForSelection(Screen current, int index) {
     switch(current) {
         case Screen::HOME:
@@ -378,6 +444,9 @@ Screen getScreenForSelection(Screen current, int index) {
             return current;
     }
 }
+
+
+
 
 
 SettingsScreen getSettingsScreenForSelection(SettingsScreen current, int index) {
@@ -394,6 +463,8 @@ SettingsScreen getSettingsScreenForSelection(SettingsScreen current, int index) 
             return current; // sub-pages handle their own idx==0 "< RETURN" specially
     }
 }
+
+
 
 
 int getMaxScreenIndex(Screen screen)
@@ -440,6 +511,11 @@ void screenSwitch(Screen screen)
         screen_clock_face();
     }
 }
+
+
+
+
+
 
 void handleInput(int src, int listMax)
 {
