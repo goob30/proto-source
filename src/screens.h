@@ -22,7 +22,7 @@ constexpr int BTN_L0 = 32;
 constexpr int BTN_L1 = 33;
 constexpr int BTN_L2 = 25;
 
-extern int currentExpression;
+extern int currentEyeExpression;
 extern int g_brightnessLevel;
 extern bool g_isVoiceDetection; 
 

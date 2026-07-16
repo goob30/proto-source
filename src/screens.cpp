@@ -6,7 +6,7 @@
 #include "timer.h"
 
 
-extern int currentExpression;
+extern int currentEyeExpression;
 
 extern int g_brightnessLevel;
 
@@ -56,6 +56,9 @@ int g_expressionSelIndex = 0;
 
 bool g_isVoiceDetection = false;
 
+
+bool g_isTopBarEnabled = true;
+
 const char* expressionList[] = {"DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4"};
 const int expressionCount = 5; // not starting at 0, total count
 
@@ -63,7 +66,7 @@ Screen g_currentScreen = Screen::HOME;
 SettingsScreen g_currentSettingsScreen = SettingsScreen::ROOT;
 
 // forward declarations so functions can reference each other regardless of definition order
-void screen_settings(boolean isAudioPass);
+void screen_settings(bool isAudioPass);
 void screen_settings_led();
 Screen getScreenForSelection(Screen current, int index);
 SettingsScreen getSettingsScreenForSelection(SettingsScreen current, int index);
@@ -77,6 +80,10 @@ const int rowH = 18;
 const int rowGap = 4;
 const int visibleRows = 3;
 const int listTop = 2;
+
+// height reserved at the top of the screen when the global top bar is enabled
+// (one text row + 1px separator line, content below resumes after this)
+const int topBarH = 10;
 
 
 struct ListRow
@@ -93,18 +100,30 @@ struct ValueRow
     int idx;
 };
 
-int updateScrollTop(int sel, int scrollTop, int rowCount)
+int updateScrollTop(int sel, int scrollTop, int rowCount, int visRows)
 {
     if (sel < scrollTop) scrollTop = sel;
-    if (sel > scrollTop + visibleRows - 1) scrollTop = sel - visibleRows + 1;
-    if (scrollTop > rowCount - visibleRows) scrollTop = rowCount - visibleRows;
+    if (sel > scrollTop + visRows - 1) scrollTop = sel - visRows + 1;
+    if (scrollTop > rowCount - visRows) scrollTop = rowCount - visRows;
     if (scrollTop < 0) scrollTop = 0;
     return scrollTop;
 }
 
-int drawListRow(int rowSlot, const char *label, bool selected)
+// works out how many rows can actually fit given whatever's reserved at the top
+// (e.g. the global top bar) and bottom (e.g. a status line) of the screen,
+// capped at visibleRows so callers never get more slots than they laid out for
+int getVisibleRows(int topOffset, int bottomReserved)
 {
-    int y = listTop + rowSlot * (rowH + rowGap);
+    int available = 64 - topOffset - bottomReserved;
+    int rows = (available + rowGap) / (rowH + rowGap);
+    if (rows < 1) rows = 1;
+    if (rows > visibleRows) rows = visibleRows;
+    return rows;
+}
+
+int drawListRow(int rowSlot, const char *label, bool selected, int topOffset)
+{
+    int y = topOffset + rowSlot * (rowH + rowGap);
 
     u8g2.setDrawColor(1);
     if (selected)
@@ -126,27 +145,90 @@ int drawListRow(int rowSlot, const char *label, bool selected)
     return textY; // handed back so callers can align custom overlays (e.g. glyph rows) to the same baseline
 }
 
-void drawScrollArrows(int scrollTop, int rowCount)
+void drawScrollArrows(int scrollTop = NULL, int rowCount = NULL, int visRows = NULL, int topOffset = NULL, int bottomLimit = NULL)
 {
     int arrowCx = rectW + 12;
 
     if (scrollTop > 0)
     {
-        u8g2.drawLine(arrowCx - 4, 10, arrowCx, 4);
-        u8g2.drawLine(arrowCx, 4, arrowCx + 4, 10);
+        u8g2.drawLine(arrowCx - 4, topOffset + 8, arrowCx, topOffset + 2);
+        u8g2.drawLine(arrowCx, topOffset + 2, arrowCx + 4, topOffset + 8);
     }
-    if (scrollTop + visibleRows < rowCount)
+    if (scrollTop + visRows < rowCount)
     {
-        u8g2.drawLine(arrowCx - 4, 54, arrowCx, 60);
-        u8g2.drawLine(arrowCx, 60, arrowCx + 4, 54);
+        u8g2.drawLine(arrowCx - 4, bottomLimit - 10, arrowCx, bottomLimit - 4);
+        u8g2.drawLine(arrowCx, bottomLimit - 4, arrowCx + 4, bottomLimit - 10);
     }
+}
+
+// draws the global top bar (currently just the clock) when enabled, then restores
+// the font that was active before the call so callers can set their own font after. 
+// returns the pixel offset content should start at (0 when the bar is disabled), so screens can do int topOffset = listTop + drawTopBar()
+int drawTopBar(int hh, int mm, bool bt, int bat)
+{
+    if (!g_isTopBarEnabled) return 0;
+
+    u8g2.setDrawColor(1);
+    u8g2.setFont(u8g2_font_6x10_tr);
+    char clockstr[6];
+    snprintf(clockstr, sizeof(clockstr), "%02d:%02d", hh, mm);
+
+    u8g2.drawStr(2, 8, clockstr); // TODO: wire to selectable telemetry per top-level TODO
+    u8g2.drawHLine(0, 9, 128); 
+
+    return topBarH;
+}
+
+// Horizontally scrolls one or more labels through a fixed-width window, wrapping
+// around once every label has passed through (marquee-style). Usable anywhere.
+//   labels        - array of strings to cycle through
+//   count         - number of entries in labels
+//   x, y          - draw position, y is the text baseline (same convention as drawStr)
+//   width         - pixel width of the visible scroll window
+//   gapPx         - pixel gap inserted between the end of one label and the start of the next
+//   speedPxPerSec - scroll speed in pixels per second
+// Animation is driven off millis(), so it can just be called every frame with no
+// extra state kept by the caller.
+void drawScrollingText(const char **labels, int count, int x, int y, int width, int gapPx, float speedPxPerSec)
+{
+    if (count <= 0) return;
+
+    int totalW = 0;
+    for (int i = 0; i < count; i++)
+    {
+        totalW += u8g2.getStrWidth(labels[i]) + gapPx;
+    }
+    if (totalW <= 0) return;
+
+    unsigned long now = millis();
+    long offset = (long)(((float)now * speedPxPerSec) / 1000.0f) % totalW;
+
+    u8g2.setClipWindow(x, y - u8g2.getMaxCharHeight(), x + width, y + 2);
+
+    int drawX = x - (int)offset;
+    int guard = 0;
+    while (drawX < x + width && guard < count * 4)
+    {
+        for (int i = 0; i < count && drawX < x + width; i++)
+        {
+            int labelW = u8g2.getStrWidth(labels[i]);
+            if (drawX + labelW > x)
+            {
+                u8g2.drawStr(drawX, y, labels[i]);
+            }
+            drawX += labelW + gapPx;
+            guard++;
+        }
+    }
+
+    u8g2.setMaxClipWindow(); // restore full-screen clipping for subsequent draws
 }
 
 
 
 
 
-void screen_home(boolean isAudioPass, int co2, int fan, int hum)
+void screen_home(bool isAudioPass, int co2, int fan, int hum)
 {
     if (selIndex >= 0 && (millis() - lastInputTime >= 5000))
     {
@@ -157,32 +239,38 @@ void screen_home(boolean isAudioPass, int co2, int fan, int hum)
     u8g2.clearBuffer();
     u8g2.setDrawColor(1);
 
+    int barOffset = drawTopBar(16, 44, true, 50);
+
     u8g2.setFont(u8g2_font_7x13_tr);
 
     ListRow rows[] = {
         {"CLOCK", 0},
-        {"LEDS"},
-        {"SENSORS"},
+        {"LEDS", 1},
+        {"SENSORS", 2},
         {"SETTINGS", 3},
     };
 
     const int rowCount = 4;
+    const int bottomReserved = 10; // reserve room for the "AUDIO PASSTHROUGH" status text so the list can't clip into it
+
+    int topOffset = listTop + barOffset;
+    int visRows = getVisibleRows(topOffset, bottomReserved);
 
     static int scrollTop = 0;
     int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
 
-    for (int i = 0; i < visibleRows; i++)
+    for (int i = 0; i < visRows; i++)
     {
         int rowIdx = scrollTop + i;
         if (rowIdx >= rowCount) break;
 
         ListRow &row = rows[rowIdx];
         bool selected = (selIndex == row.idx);
-        drawListRow(i, row.label, selected);
+        drawListRow(i, row.label, selected, topOffset);
     }
 
-    drawScrollArrows(scrollTop, rowCount);
+    drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64 - bottomReserved);
 
     u8g2.drawStr(3, 64, "AUDIO PASSTHROUGH");
 
@@ -199,11 +287,13 @@ void screen_clock_face() {
     u8g2.clearBuffer();
     u8g2.setDrawColor(1);
 
+    int barOffset = drawTopBar(16, 44, true, 50);
+
     u8g2.setFont(clockStyleFont[static_cast<int>(g_clockMode)]);
     int textW = u8g2.getStrWidth("16:42");
     int textH = u8g2.getMaxCharHeight();
     int textX = (128 - textW) / 2;
-    int textY = (64 + textH) / 2;
+    int textY = barOffset + ((64 - barOffset) + textH) / 2;
     u8g2.drawStr(textX, textY, "16:42");
 
     u8g2.sendBuffer();
@@ -221,7 +311,7 @@ void screen_clock_face() {
 // ***********************          ***********************
 // *********************** SETTINGS ***********************
 // ***********************          ***********************
-void screen_settings(boolean isAudioPass)
+void screen_settings(bool isAudioPass)
 {
     if (selIndex >= 0 && (millis() - lastInputTime > 5000))
     {
@@ -230,6 +320,9 @@ void screen_settings(boolean isAudioPass)
 
     u8g2.clearBuffer();
     u8g2.setDrawColor(1);
+
+    int barOffset = drawTopBar(16, 44, true, 50);
+
     u8g2.setFont(u8g2_font_7x13_tr);
 
     ListRow rows[] = {
@@ -242,21 +335,24 @@ void screen_settings(boolean isAudioPass)
     };
     const int rowCount = 6;
 
+    int topOffset = listTop + barOffset;
+    int visRows = getVisibleRows(topOffset, 0);
+
     static int scrollTop = 0;
     int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
 
-    for (int i = 0; i < visibleRows; i++)
+    for (int i = 0; i < visRows; i++)
     {
         int rowIdx = scrollTop + i;
         if (rowIdx >= rowCount) break;
 
         ListRow &row = rows[rowIdx];
         bool selected = (selIndex == row.idx);
-        drawListRow(i, row.label, selected);
+        drawListRow(i, row.label, selected, topOffset);
     }
 
-    drawScrollArrows(scrollTop, rowCount);
+    drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
 
     u8g2.sendBuffer();
 }
@@ -272,6 +368,9 @@ void screen_settings_led()
 
     u8g2.clearBuffer();
     u8g2.setDrawColor(1);
+
+    int barOffset = drawTopBar(16, 44, true, 50);
+
     u8g2.setFont(u8g2_font_7x13_tr);
 
     ListRow rows[] = {
@@ -282,12 +381,15 @@ void screen_settings_led()
     };
     const int rowCount = 4; // this is for the clamps in handleinput
 
+    int topOffset = listTop + barOffset;
+    int visRows = getVisibleRows(topOffset, 0);
+
     static int scrollTop = 0;
     int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
 
     // base listt
-    for (int i = 0; i < visibleRows; i++)
+    for (int i = 0; i < visRows; i++)
     {
         int rowIdx = scrollTop + i;
         if (rowIdx >= rowCount) break;
@@ -311,7 +413,7 @@ void screen_settings_led()
         }
         
 
-        int textY = drawListRow(i, label, selected);
+        int textY = drawListRow(i, label, selected, topOffset);
 
         if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
         {
@@ -349,7 +451,7 @@ void screen_settings_led()
         u8g2.setDrawColor(1);
     } // thank you claude 
 
-    drawScrollArrows(scrollTop, rowCount);
+    drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
 
     // expression pop up hurrr durrr
     if (g_LedSettingsScreenMode == LedSettingsScreenMode::EXPRESSION_POPUP)
@@ -405,7 +507,7 @@ void screen_settings_style() {
     const int rowCount = 2;
     static int scrollTop = 0;
     int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount);
+    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visibleRows);
     
     for (int i = 0; i < visibleRows; i++) {
         int rowidx = scrollTop + i;
@@ -418,7 +520,14 @@ void screen_settings_style() {
     }
 
 }
+// ***********************              ***********************
 // *********************** END SETTINGS ***********************
+// ***********************              ***********************
+
+
+
+
+
 
 
 
@@ -536,7 +645,7 @@ void handleInput(int src, int listMax)
         else if (src == BTN_L1) g_expressionSelIndex = clamp(g_expressionSelIndex - 1, 0, expressionCount - 1);
         else if (src == BTN_L2) { 
             g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
-            currentExpression = g_expressionSelIndex;
+            currentEyeExpression = g_expressionSelIndex;
             renderFace();
         }
         lastInputTime = millis();

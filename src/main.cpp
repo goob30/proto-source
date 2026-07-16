@@ -42,18 +42,33 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 
 int g_brightnessLevel = 0;
 
-
 int globalCo2 = 30;
 int globalFan = 100;
 int globalHum = 30;
-
 
 bool isTalking = true;
 uint8_t mouthFrame = 0;
 unsigned long lastMouthUpdate = 0;
 const unsigned long TALK_INTERVAL = 100;
 
+int blinkSequence[]  = {0, 1, 2, 1, 0};
+int numBlinkSeq = 5;
+int blindex = 0;
+
+bool isBlinkEnabled = true;
+bool isAnimatedBlinkEnabled = true;
+unsigned long lastBlinkMillis = 0;
+unsigned long nextBlinkInterval = (isTalking) ? random (3000, 4000) : random(6000, 8000);
+unsigned long nextBlinkFrameTime = 20;
+unsigned long lastBlinkFrameTime = 0;
+int blinkDuration = (isAnimatedBlinkEnabled) ? nextBlinkFrameTime * numBlinkSeq : 50;
+
+bool wasBlinking = false;
+
+
+
 unsigned long previousMillis = 0;
+
 
 
 void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOffset) {
@@ -63,7 +78,18 @@ void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOf
 }
 
 
-int currentExpression = 0;
+int currentEyeExpression = 0;
+
+
+bool isBlinking() {
+  if ((millis() - lastBlinkMillis) > nextBlinkInterval) {
+    lastBlinkMillis = millis();
+    nextBlinkInterval = random(6000, 8000);
+    return true;
+  }
+  return (millis() - lastBlinkMillis) < blinkDuration;
+}
+
 
 
 void renderFace() {
@@ -76,12 +102,31 @@ void renderFace() {
 
   mxDrawBitmap(mxL, noseL, 8, LEFT_NOSE_OFFSET);
   mxDrawBitmap(mxL, mouthFramesL[mouthFrame], 32, LEFT_MOUTH_OFFSET);
-  mxDrawBitmap(mxL, eyeFramesL[currentExpression], 16, LEFT_EYE_OFFSET);
+  
+  int eyeidx;
 
-  mxDrawBitmap(mxR, eyeFramesR[currentExpression], 16, RIGHT_EYE_OFFSET);
+  if (isBlinking()) {
+    if (millis() - nextBlinkFrameTime > lastBlinkFrameTime) {
+      lastBlinkFrameTime = millis();
+      if (blindex < 5 - 1) {
+        blindex++;
+      }
+    }
+    int frameidx = blinkSequence[blindex];
+    mxDrawBitmap(mxL, eyeFramesClosingL[frameidx], 16, LEFT_EYE_OFFSET);
+    mxDrawBitmap(mxR, eyeFramesClosingR[frameidx], 16, RIGHT_EYE_OFFSET);
+  } else {
+    blindex = 0;
+    eyeidx = currentEyeExpression;
+    mxDrawBitmap(mxL, eyeFramesL[eyeidx], 16, LEFT_EYE_OFFSET);
+    mxDrawBitmap(mxR, eyeFramesR[eyeidx], 16, RIGHT_EYE_OFFSET);
+  }
+
+  
+
   mxDrawBitmap(mxR, mouthFramesR[mouthFrame], 32, RIGHT_MOUTH_OFFSET);
   mxDrawBitmap(mxR, noseR, 8, RIGHT_NOSE_OFFSET);
-  
+
   
   mxL.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
   mxR.control(MD_MAX72XX::UPDATE, MD_MAX72XX::ON);
@@ -129,7 +174,6 @@ void setup() {
   screenSwitch(Screen::HOME);
 }
 
-
 void loop() {
   bool curL0 = digitalRead(BTN_L0);
   bool curL1 = digitalRead(BTN_L1);
@@ -151,6 +195,14 @@ void loop() {
 
   screenSwitch(g_currentScreen);
   updateTalking();
+
+  bool blinkingNow = isBlinking();
+
+
+  if (isBlinking() || wasBlinking) {
+    renderFace();
+  }
+  wasBlinking = blinkingNow;
 
 
   
