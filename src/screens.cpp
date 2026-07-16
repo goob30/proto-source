@@ -417,11 +417,10 @@ void screen_settings_led()
 
         if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
         {
-            // measure whole block so it centers like other rows
             const int glyphW = 12;
             const char *onStr = "ON";
             const char *offStr = "OFF";
-            const int gap = u8g2.getStrWidth("      "); // spacing between On and off groups
+            const int gap = u8g2.getStrWidth("      ");
 
             u8g2.setFont(u8g2_font_7x13_tr);
             int onW = u8g2.getStrWidth(onStr);
@@ -431,7 +430,8 @@ void screen_settings_led()
             int cx = (rectW - blockW) / 2;
             int gy = textY;
 
-            // draw color is already set correctly by the selected/not-selected branch above
+            u8g2.setDrawColor(selected ? 0 : 1);
+
             u8g2.setFont(u8g2_font_7x13_t_symbols);
             u8g2.drawGlyph(cx, gy, g_isVoiceDetection ? 0x25CF : 0x25CB);
             cx += glyphW;
@@ -446,9 +446,11 @@ void screen_settings_led()
 
             u8g2.setFont(u8g2_font_7x13_tr);
             u8g2.drawStr(cx, gy, offStr);
+
+            u8g2.setDrawColor(1); 
         }
 
-        u8g2.setDrawColor(1);
+        u8g2.setDrawColor(selected ? 0 : 1);
     } // thank you claude 
 
     drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
