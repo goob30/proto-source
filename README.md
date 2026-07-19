@@ -1,1 +1,1 @@
-Source code for Toast helmets. `src` folder includes files for ESP32. `tools` folder includes Python files for screenwriting UI tools (MAX7219 and SH1106 displays).
+Source code for Toast helmets. `src` folder includes files for ESP32. `tools` folder includes Python files for screenwriting UI tools (MAX7219 and SH1106 displays). (`tools` is a temporary tool for myself to quickly debug bitmap and screen layout issues, will not be pushed with the final product)
