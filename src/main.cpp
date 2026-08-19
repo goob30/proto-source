@@ -49,10 +49,12 @@ int globalHum = 30;
 bool isTalking = true;
 uint8_t mouthFrame = 0;
 unsigned long lastMouthUpdate = 0;
-const unsigned long TALK_INTERVAL = 100;
+const unsigned long TALK_INTERVAL = 80;
 
-int blinkSequence[]  = {0, 1, 2, 1, 0};
-int numBlinkSeq = 5;
+int blinkSequenceRegularEye[]  = {0, 1, 2, 1, 0};
+int blinkSequenceConfusedEye[] = {0};
+int *selectedBlinkSequence;
+int numBlinkSeq;
 int blindex = 0;
 
 bool isBlinkEnabled = true;
@@ -80,6 +82,23 @@ void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOf
 
 int currentEyeExpression = 0;
 
+void updateBlinkSequence() {
+  switch (currentEyeExpression) {
+    case 0:
+      selectedBlinkSequence = blinkSequenceRegularEye;
+      numBlinkSeq = sizeof(blinkSequenceRegularEye) / sizeof(int);
+      break;
+    case 2:
+      selectedBlinkSequence = blinkSequenceConfusedEye;
+      numBlinkSeq = sizeof(blinkSequenceConfusedEye) / sizeof(int);
+      break;
+    default:
+      selectedBlinkSequence = blinkSequenceRegularEye;
+      numBlinkSeq = sizeof(blinkSequenceRegularEye) / sizeof(int);
+      break;
+  }
+  blinkDuration = (isAnimatedBlinkEnabled) ? nextBlinkFrameTime * numBlinkSeq : 50;
+}
 
 bool isBlinking() {
   if ((millis() - lastBlinkMillis) > nextBlinkInterval) {
@@ -108,11 +127,11 @@ void renderFace() {
   if (isBlinking()) {
     if (millis() - nextBlinkFrameTime > lastBlinkFrameTime) {
       lastBlinkFrameTime = millis();
-      if (blindex < 5 - 1) {
+      if (blindex < sizeof(blinkSequenceRegularEye) - 1) {
         blindex++;
       }
     }
-    int frameidx = blinkSequence[blindex];
+    int frameidx = selectedBlinkSequence[blindex];
     mxDrawBitmap(mxL, eyeFramesClosingL[frameidx], 16, LEFT_EYE_OFFSET);
     mxDrawBitmap(mxR, eyeFramesClosingR[frameidx], 16, RIGHT_EYE_OFFSET);
   } else {
@@ -157,6 +176,8 @@ void setup() {
   pinMode(BTN_L0, INPUT_PULLUP);
   pinMode(BTN_L1, INPUT_PULLUP);
   pinMode(BTN_L2, INPUT_PULLUP);
+
+  updateBlinkSequence();
 
   // Initialize matrices
   mxL.begin();

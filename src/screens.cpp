@@ -710,7 +710,7 @@ void handleInput(int src, int listMax)
         }
     }
     break;
-        
+     
     default:
         break;
     }

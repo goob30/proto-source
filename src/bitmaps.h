@@ -52,11 +52,22 @@ const uint8_t eyeR_1[16] = {
   0x3F, 0x3F, 0x3F, 0x3F, 0x1F, 0x1F, 0x0F, 0x03
 };
 
-static const uint8_t* eyeFramesL[] = { eyeL, eyeL_1 };
-static const uint8_t* eyeFramesR[] = { eyeR, eyeR_1 };
+// confused expression  
+const uint8_t eye_confused[16] = {
+  0x00, 0x00, 0x00, 0x00, 0x3C, 0x7E, 0xFF, 0xFF,
+  0xFF, 0xFF, 0x7E, 0x3C, 0x00, 0x00, 0x00, 0x00
+};
 
-static const uint8_t* eyeFramesClosingL[] { eyeL_close1, eyeL_close2, eyeClosed };
-static const uint8_t* eyeFramesClosingR[] { eyeR_close1, eyeR_close2, eyeClosed };
+const uint8_t eye_confused_closed[16] = {
+  0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x10,
+  0x10, 0x10, 0x10, 0x10, 0x10, 0x00, 0x00, 0x00
+};
+
+static const uint8_t* eyeFramesL[] = {eyeL, eyeL_1, eye_confused};
+static const uint8_t* eyeFramesR[] = {eyeR, eyeR_1, eye_confused};
+
+static const uint8_t* eyeFramesClosingL[] {eyeL_close1, eyeL_close2, eyeClosed};
+static const uint8_t* eyeFramesClosingR[] {eyeR_close1, eyeR_close2, eyeClosed};
 
 const uint8_t mouthL[32] = {
   0x1C, 0x1E, 0x13, 0x16, 0x16, 0x1C, 0x1C, 0x18,
