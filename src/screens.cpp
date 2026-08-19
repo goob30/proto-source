@@ -12,6 +12,10 @@ extern int g_brightnessLevel;
 
 extern bool g_isVoiceDetection;
 
+char g_messagePopupText[128] = "";
+bool g_messagePopupActive = false;
+bool g_messagePopupIsError = false;
+
 extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
 
 int selIndex = -1;
@@ -225,6 +229,224 @@ void drawScrollingText(const char **labels, int count, int x, int y, int width, 
 }
 
 
+void drawMessagePopup()
+{
+    if (!g_messagePopupActive) return;
+    bool isLog = g_messagePopupIsError; 
+
+    if (isLog) {
+        // error screen
+
+        const int screenW = 128;
+        const int screenH = 64;
+
+        const int btnW = 40;
+        const int btnH = 14;
+        const int btnX = (screenW - btnW) / 2;
+        const int btnY = screenH - btnH - 2;
+
+        u8g2.setFont(u8g2_font_5x7_tr);
+
+        const int lineH = 8;
+        const int maxTextW = 124;
+        const int maxLines = 6;
+
+        const char* lines[maxLines];
+        int lineCount = 0;
+
+        char buf[128];
+        strncpy(buf, g_messagePopupText, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+
+        char* saveptr;
+        char* segment = strtok_r(buf, "\n", &saveptr);
+
+        while (segment && lineCount < maxLines) {
+            char* p = segment;
+            char lineBuf[32] = "";
+
+            while (*p && lineCount < maxLines) {
+                char* wordEnd = strchr(p, ' ');
+                char word[32];
+
+                int wlen = wordEnd ? (wordEnd - p) : (int)strlen(p);
+
+                if (wlen >= (int)sizeof(word))
+                    wlen = sizeof(word) - 1;
+
+                strncpy(word, p, wlen);
+                word[wlen] = '\0';
+
+                char trial[32];
+
+                if (lineBuf[0])
+                    snprintf(trial, sizeof(trial), "%s %s", lineBuf, word);
+                else
+                    snprintf(trial, sizeof(trial), "%s", word);
+
+                if (u8g2.getStrWidth(trial) > maxTextW && lineBuf[0]) {
+                    lines[lineCount++] = strdup(lineBuf);
+                    lineBuf[0] = '\0';
+
+                    if (lineCount < maxLines)
+                        snprintf(lineBuf, sizeof(lineBuf), "%s", word);
+                } else {
+                    strncpy(lineBuf, trial, sizeof(lineBuf) - 1);
+                    lineBuf[sizeof(lineBuf) - 1] = '\0';
+                }
+
+                p += wlen;
+
+                if (*p == ' ')
+                    p++;
+            }
+
+            if (lineBuf[0] && lineCount < maxLines)
+                lines[lineCount++] = strdup(lineBuf);
+
+            segment = strtok_r(NULL, "\n", &saveptr);
+        }
+
+        u8g2.setDrawColor(0);
+        u8g2.drawBox(0, 0, screenW, screenH);
+
+        u8g2.setDrawColor(1);
+
+        u8g2.setFont(u8g2_font_6x10_tr);
+        u8g2.drawStr(2, 9, "ERROR");
+
+        u8g2.drawHLine(0, 11, screenW);
+
+        u8g2.setFont(u8g2_font_5x7_tr);
+
+        int textY = 20;
+
+        for (int i = 0; i < lineCount; i++) {
+            u8g2.drawStr(2, textY, lines[i]);
+            textY += lineH;
+            free((void*)lines[i]);
+        }
+
+        u8g2.drawRBox(btnX, btnY, btnW, btnH, 3);
+
+        u8g2.setDrawColor(0);
+        u8g2.setFont(u8g2_font_6x10_tr);
+
+        int okW = u8g2.getStrWidth("OK");
+        u8g2.drawStr(btnX + (btnW - okW) / 2, btnY + 10, "OK");
+
+        u8g2.setDrawColor(1);
+
+        return;
+    }
+
+    // normal poup
+
+    const int popX = 10;
+    const int popY = 10;
+    const int popW = 108;
+    const int popH = 60;
+
+    const int btnW = 40;
+    const int btnH = 14;
+
+    const int btnX = popX + (popW - btnW) / 2;
+    const int btnY = popY + popH - btnH - 4;
+
+    u8g2.setFont(u8g2_font_7x13_tr);
+
+    const int lineH = 15;
+    const int maxTextW = popW - 8;
+    const int maxLines = 2;
+
+    const char* lines[maxLines];
+    int lineCount = 0;
+
+    char buf[128];
+
+    strncpy(buf, g_messagePopupText, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char* saveptr;
+    char* segment = strtok_r(buf, "\n", &saveptr);
+
+    while (segment && lineCount < maxLines) {
+        char* p = segment;
+        char lineBuf[32] = "";
+
+        while (*p && lineCount < maxLines) {
+            char* wordEnd = strchr(p, ' ');
+            char word[32];
+
+            int wlen = wordEnd ? (wordEnd - p) : (int)strlen(p);
+
+            if (wlen >= (int)sizeof(word)) wlen = sizeof(word) - 1;
+
+            strncpy(word, p, wlen);
+            word[wlen] = '\0';
+
+            char trial[32];
+
+            if (lineBuf[0]) snprintf(trial, sizeof(trial), "%s %s", lineBuf, word);
+            else snprintf(trial, sizeof(trial), "%s", word);
+
+            if (u8g2.getStrWidth(trial) > maxTextW && lineBuf[0]) {
+                lines[lineCount++] = strdup(lineBuf);
+                lineBuf[0] = '\0';
+
+                if (lineCount < maxLines)
+                    snprintf(lineBuf, sizeof(lineBuf), "%s", word);
+            } else {
+                strncpy(lineBuf, trial, sizeof(lineBuf) - 1);
+                lineBuf[sizeof(lineBuf) - 1] = '\0';
+            }
+            p += wlen;
+            if (*p == ' ') p++;
+        }
+
+        if (lineBuf[0] && lineCount < maxLines) lines[lineCount++] = strdup(lineBuf);
+
+        segment = strtok_r(NULL, "\n", &saveptr);
+    }
+
+    u8g2.setDrawColor(0);
+    u8g2.drawBox(popX, popY, popW, popH);
+
+    u8g2.setDrawColor(1);
+    u8g2.drawRFrame(popX, popY, popW, popH, 4);
+
+    int textY = (lineCount == 1) ? (popY + 22) : (popY + 17);
+
+    for (int i = 0; i < lineCount; i++) {
+        int textW = u8g2.getStrWidth(lines[i]);
+        int textX = popX + (popW - textW) / 2;
+
+        u8g2.drawStr(textX, textY, lines[i]);
+
+        textY += lineH;
+        free((void*)lines[i]);
+    }
+
+    u8g2.drawRBox(btnX, btnY, btnW, btnH, 3);
+
+    u8g2.setDrawColor(0);
+
+    int okW = u8g2.getStrWidth("OK");
+    u8g2.drawStr(btnX + (btnW - okW) / 2, btnY + btnH - 3, "OK");
+
+    u8g2.setDrawColor(1);
+}
+
+void popup(const char *msg, bool isError)
+{
+    strncpy(g_messagePopupText, msg, sizeof(g_messagePopupText) - 1);
+    g_messagePopupText[sizeof(g_messagePopupText) - 1] = '\0';
+    g_messagePopupIsError = isError;
+    g_messagePopupActive = true;
+}
+
+
+
 
 
 
@@ -274,6 +496,8 @@ void screen_home(bool isAudioPass, int co2, int fan, int hum)
 
     u8g2.drawStr(3, 64, "AUDIO PASSTHROUGH");
 
+    drawMessagePopup(); 
+
     u8g2.sendBuffer();
 }
 
@@ -295,6 +519,8 @@ void screen_clock_face() {
     int textX = (128 - textW) / 2;
     int textY = barOffset + ((64 - barOffset) + textH) / 2;
     u8g2.drawStr(textX, textY, "16:42");
+
+    drawMessagePopup(); 
 
     u8g2.sendBuffer();
 }
@@ -353,6 +579,8 @@ void screen_settings(bool isAudioPass)
     }
 
     drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
+
+    drawMessagePopup(); 
 
     u8g2.sendBuffer();
 }
@@ -486,6 +714,8 @@ void screen_settings_led()
             }
         }
     }
+
+    drawMessagePopup(); 
 
     u8g2.sendBuffer();
 }
@@ -630,22 +860,29 @@ void screenSwitch(Screen screen)
 
 void handleInput(int src, int listMax)
 {
+    if (g_messagePopupActive)
+    {
+        if (src == ROLE_SELECT) g_messagePopupActive = false;
+        lastInputTime = millis();
+        return;
+    }
+
     bool onLed = (g_currentScreen == Screen::SETTINGS && g_currentSettingsScreen == SettingsScreen::LED);
 
     if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
     {
-        if (src == BTN_L0) g_brightnessLevel = clamp(g_brightnessLevel + 1, 0, 15);
-        else if (src == BTN_L1) g_brightnessLevel = clamp(g_brightnessLevel - 1, 0, 15);
-        else if (src == BTN_L2) g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // confirm value, drop back to list nav ADD COMMAND HERE
+        if (src == ROLE_UP) g_brightnessLevel = clamp(g_brightnessLevel + 1, 0, 15);
+        else if (src == ROLE_DOWN) g_brightnessLevel = clamp(g_brightnessLevel - 1, 0, 15);
+        else if (src == ROLE_SELECT) g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // confirm value, drop back to list nav ADD COMMAND HERE
         lastInputTime = millis();
         return;
     }
 
     if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EXPRESSION_POPUP)
     {
-        if (src == BTN_L0) g_expressionSelIndex = clamp(g_expressionSelIndex + 1, 0, expressionCount - 1);
-        else if (src == BTN_L1) g_expressionSelIndex = clamp(g_expressionSelIndex - 1, 0, expressionCount - 1);
-        else if (src == BTN_L2) { 
+        if (src == ROLE_UP) g_expressionSelIndex = clamp(g_expressionSelIndex + 1, 0, expressionCount - 1);
+        else if (src == ROLE_DOWN) g_expressionSelIndex = clamp(g_expressionSelIndex - 1, 0, expressionCount - 1);
+        else if (src == ROLE_SELECT) { 
             g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
             currentEyeExpression = g_expressionSelIndex;
             renderFace();
@@ -656,8 +893,8 @@ void handleInput(int src, int listMax)
 
     if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
     {
-        if (src == BTN_L0 || src == BTN_L1) g_isVoiceDetection = !g_isVoiceDetection;
-        else if (src == BTN_L2) {
+        if (src == ROLE_UP || src == ROLE_DOWN) g_isVoiceDetection = !g_isVoiceDetection;
+        else if (src == ROLE_SELECT) {
             g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
         }
         lastInputTime = millis();
@@ -666,53 +903,42 @@ void handleInput(int src, int listMax)
 
     if (g_currentScreen == Screen::CLOCK)
     {
-        if (src == BTN_L0) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) + 1, 0, clockStyleCount - 1));
-        else if (src == BTN_L1) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) - 1, 0, clockStyleCount - 1));
-        else if (src == BTN_L2) g_currentScreen = Screen::HOME;
+        if (src == ROLE_UP) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) + 1, 0, clockStyleCount - 1));
+        else if (src == ROLE_DOWN) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) - 1, 0, clockStyleCount - 1));
+        else if (src == ROLE_SELECT) g_currentScreen = Screen::HOME;
         lastInputTime = millis();
         return;
     }
 
-    switch (src)
-    {
-    case BTN_L0:
+    if (src == ROLE_UP) {
         selIndex = clamp(selIndex + 1, 0, getMaxScreenIndex(g_currentScreen));
-        break;
-    case BTN_L1:
+    } else if (src == ROLE_DOWN) {
         selIndex = clamp(selIndex - 1, 0, getMaxScreenIndex(g_currentScreen));
-        break;
-    case BTN_L2:
-    if (selIndex >= 0) {
-        if (g_currentScreen == Screen::SETTINGS) {
-            if (g_currentSettingsScreen == SettingsScreen::ROOT && selIndex == 0) {
-                g_currentScreen = Screen::HOME;
-                selIndex = -1;
-            } else if (g_currentSettingsScreen != SettingsScreen::ROOT && selIndex == 0) {
-                g_currentSettingsScreen = SettingsScreen::ROOT; // "< RETURN" on any sub-page
-                selIndex = -1;
-            } else if (g_currentSettingsScreen == SettingsScreen::ROOT) {
-                g_currentSettingsScreen = getSettingsScreenForSelection(g_currentSettingsScreen, selIndex);
-                selIndex = -1;
-            // begin LED screen settings segment
-            } else if (g_currentSettingsScreen == SettingsScreen::LED) {
-                if (selIndex == 1) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_BRIGHTNESS;}
-                else if (selIndex == 2) {g_LedSettingsScreenMode = LedSettingsScreenMode::EXPRESSION_POPUP;}
-                else if (selIndex == 3) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_ISVOICEDETECTION;}
-            } 
-            
-            
-        } else {
-            Screen t = getScreenForSelection(g_currentScreen, selIndex);
-            if (t != g_currentScreen) {
-                g_currentScreen = t;
-                selIndex = -1;
+    } else if (src == ROLE_SELECT) {
+        if (selIndex >= 0) {
+            if (g_currentScreen == Screen::SETTINGS) {
+                if (g_currentSettingsScreen == SettingsScreen::ROOT && selIndex == 0) {
+                    g_currentScreen = Screen::HOME;
+                    selIndex = -1;
+                } else if (g_currentSettingsScreen != SettingsScreen::ROOT && selIndex == 0) {
+                    g_currentSettingsScreen = SettingsScreen::ROOT;
+                    selIndex = -1;
+                } else if (g_currentSettingsScreen == SettingsScreen::ROOT) {
+                    g_currentSettingsScreen = getSettingsScreenForSelection(g_currentSettingsScreen, selIndex);
+                    selIndex = -1;
+                } else if (g_currentSettingsScreen == SettingsScreen::LED) {
+                    if (selIndex == 1) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_BRIGHTNESS;}
+                    else if (selIndex == 2) {g_LedSettingsScreenMode = LedSettingsScreenMode::EXPRESSION_POPUP;}
+                    else if (selIndex == 3) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_ISVOICEDETECTION;}
+                }
+            } else {
+                Screen t = getScreenForSelection(g_currentScreen, selIndex);
+                if (t != g_currentScreen) {
+                    g_currentScreen = t;
+                    selIndex = -1;
+                }
             }
         }
-    }
-    break;
-     
-    default:
-        break;
     }
     lastInputTime = millis();
     Serial.println(selIndex);

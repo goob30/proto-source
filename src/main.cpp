@@ -9,6 +9,10 @@
 #include "bitmaps.h"
 #include "clamp.h"
 #include "screens.h"
+#include "esp_system.h"
+#include "esp32-hal.h"
+#include "soc/soc.h"
+#include "soc/rtc.h"
 
 // Matrix setup
 #define MAX_DEVICES 7
@@ -36,9 +40,10 @@ MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEV
 #define RIGHT_MOUTH_OFFSET 16
 #define RIGHT_NOSE_OFFSET 48
 
-#define BTN_L0 32
-#define BTN_L1 33
-#define BTN_L2 25
+const int buttonPins[NUM_BUTTONS] = { BTN_INDEX_L, BTN_MIDDLE_L, BTN_INDEX_R, BTN_MIDDLE_R };
+ButtonRole buttonRole[NUM_BUTTONS] = { ROLE_UP, ROLE_DOWN, ROLE_SELECT, ROLE_MISC };
+bool buttonLastState[NUM_BUTTONS] = { HIGH, HIGH, HIGH, HIGH };
+
 
 int g_brightnessLevel = 0;
 
@@ -165,17 +170,41 @@ void updateTalking() {
   }
 }
 
+RTC_DATA_ATTR char g_lastBreadcrumb[32] = "";   // last known-good checkpoint before a crash
+RTC_NOINIT_ATTR uint32_t g_bootCount;
 
-bool lastL0 = HIGH;
-bool lastL1 = HIGH;
-bool lastL2 = HIGH;
+inline void setBreadcrumb(const char *tag) {
+    strncpy(g_lastBreadcrumb, tag, sizeof(g_lastBreadcrumb) - 1);
+    g_lastBreadcrumb[sizeof(g_lastBreadcrumb) - 1] = '\0';
+}
 
+const char* resetReasonToStr(esp_reset_reason_t r) {
+    switch (r) {
+        case ESP_RST_PANIC: return "PANIC";
+        case ESP_RST_INT_WDT: return "INT WATCHDOG";
+        case ESP_RST_TASK_WDT: return "TASK WATCHDOG";
+        case ESP_RST_WDT: return "WATCHDOG";
+        case ESP_RST_BROWNOUT: return "BROWNOUT";
+        default: return "UNKNOWN";
+    }
+}
 
 void setup() {
+    esp_reset_reason_t crashReason = esp_reset_reason();
+    if (crashReason == ESP_RST_PANIC || crashReason == ESP_RST_INT_WDT ||
+        crashReason == ESP_RST_TASK_WDT || crashReason == ESP_RST_WDT) {
 
-  pinMode(BTN_L0, INPUT_PULLUP);
-  pinMode(BTN_L1, INPUT_PULLUP);
-  pinMode(BTN_L2, INPUT_PULLUP);
+        char crashText[128];
+        snprintf(crashText, sizeof(crashText),
+                 "%s\nnear: %s",
+                 resetReasonToStr(crashReason),
+                 g_lastBreadcrumb[0] ? g_lastBreadcrumb : "unknown");
+
+        popup(crashText, true);
+    }
+    setBreadcrumb("boot");
+
+  for (int i = 0; i < NUM_BUTTONS; i++) pinMode(buttonPins[i], INPUT_PULLUP);
 
   updateBlinkSequence();
 
@@ -196,23 +225,13 @@ void setup() {
 }
 
 void loop() {
-  bool curL0 = digitalRead(BTN_L0);
-  bool curL1 = digitalRead(BTN_L1);
-  bool curL2 = digitalRead(BTN_L2);
-
-  if (lastL0 == HIGH && curL0 == LOW) {
-    handleInput(BTN_L0, getMaxScreenIndex(g_currentScreen));
+  for (int i = 0; i < NUM_BUTTONS; i++) {
+    bool cur = digitalRead(buttonPins[i]);
+    if (buttonLastState[i] == HIGH && cur == LOW) {
+      handleInput(buttonRole[i], getMaxScreenIndex(g_currentScreen));
+    }
+    buttonLastState[i] = cur;
   }
-  if (lastL1 == HIGH && curL1 == LOW) {
-    handleInput(BTN_L1, getMaxScreenIndex(g_currentScreen));
-  }
-  if (lastL2 == HIGH && curL2 == LOW) {
-    handleInput(BTN_L2, getMaxScreenIndex(g_currentScreen));
-  }
-
-  lastL0 = curL0;
-  lastL1 = curL1;
-  lastL2 = curL2;
 
   screenSwitch(g_currentScreen);
   updateTalking();
