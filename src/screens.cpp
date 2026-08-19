@@ -1,48 +1,22 @@
-// TODO: implement clock face screen
-//       add toggleable top bar with clock, selectable telemetry (sensors, bt status)
+// TODO: add toggleable top bar with clock, selectable telemetry (sensors, bt status)
 //       finish all settings options screens & implementation
+//       add functionality to draw screens from their respective files/headers instead of hardcoded into here
 
 #include "screens.h"
+#include "inputHandler.h"
 #include "timer.h"
+#include "screens/clockScreen.h"
+#include "screens/settingsScreen.h"
+#include "screens/homeScreen.h"
 
-
-extern int currentEyeExpression;
 
 extern int g_brightnessLevel;
-
-extern bool g_isVoiceDetection;
 
 char g_messagePopupText[128] = "";
 bool g_messagePopupActive = false;
 bool g_messagePopupIsError = false;
 
 extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
-
-int selIndex = -1;
-int prevSelIndex = -1;
-unsigned long lastInputTime = 0;
-
-
-enum class SettingsScreen : int
-{
-    ROOT,
-    CONTROLS,
-    LED,
-    MISC,
-    SENSORS,
-    STYLE,
-};
-
-
-enum class LedSettingsScreenMode : int {LIST, EDIT_BRIGHTNESS, EXPRESSION_POPUP, EDIT_ISVOICEDETECTION}; // list is when you are only scrolling, not modifying
-LedSettingsScreenMode g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // sets the active enum index to not be changing any settings
-
-enum class StyleSettingsScreenMode : int {LIST, EDIT_ISTOPBARENABLED};
-StyleSettingsScreenMode g_StyleSettingsScreenMode = StyleSettingsScreenMode::LIST;
-
-
-enum class ClockMode : int {STD, BMP, SEG};
-ClockMode g_clockMode = ClockMode::STD;
 
 
 const char* clockStyleList[] = {"STANDARD", "RETRO", "CHUNKY", "SEGMENT"};
@@ -54,27 +28,13 @@ const uint8_t* clockStyleFont[] = {
 };
 
 
-const int clockStyleCount = 3;
-
-int g_expressionSelIndex = 0;
-
-bool g_isVoiceDetection = false;
-
-
 bool g_isTopBarEnabled = true;
 
 const char* expressionList[] = {"DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4"};
-const int expressionCount = 5; // not starting at 0, total count
-
-Screen g_currentScreen = Screen::HOME;
-SettingsScreen g_currentSettingsScreen = SettingsScreen::ROOT;
 
 // forward declarations so functions can reference each other regardless of definition order
 void screen_settings(bool isAudioPass);
 void screen_settings_led();
-Screen getScreenForSelection(Screen current, int index);
-SettingsScreen getSettingsScreenForSelection(SettingsScreen current, int index);
-int getMaxScreenIndex(Screen screen);
 void settingsScreenSwitch(SettingsScreen sub);
 
 
@@ -90,19 +50,20 @@ const int listTop = 2;
 const int topBarH = 10;
 
 
-struct ListRow
-{
-    const char *label;
-    int idx;
-};
+// struct ListRow
+// {
+//     const char *label;
+//     int idx;
+// };
 
-struct ValueRow
-{
-    const char *fmt;
-    int val;
-    int y;
-    int idx;
-};
+// struct ValueRow
+// {
+//     const char *fmt;
+//     int val;
+//     int y;
+//     int idx;
+// };
+// defined in screns.h
 
 int updateScrollTop(int sel, int scrollTop, int rowCount, int visRows)
 {
@@ -149,7 +110,7 @@ int drawListRow(int rowSlot, const char *label, bool selected, int topOffset)
     return textY; // handed back so callers can align custom overlays (e.g. glyph rows) to the same baseline
 }
 
-void drawScrollArrows(int scrollTop = NULL, int rowCount = NULL, int visRows = NULL, int topOffset = NULL, int bottomLimit = NULL)
+void drawScrollArrows(int scrollTop, int rowCount, int visRows, int topOffset, int bottomLimit)
 {
     int arrowCx = rectW + 12;
 
@@ -450,86 +411,80 @@ void popup(const char *msg, bool isError)
 
 
 
-void screen_home(bool isAudioPass, int co2, int fan, int hum)
-{
-    if (selIndex >= 0 && (millis() - lastInputTime >= 5000))
-    {
-        selIndex = -1;
+// void screen_home(bool isAudioPass, int co2, int fan, int hum)
+// {
+//     if (selIndex >= 0 && (millis() - lastInputTime >= 5000))
+//     {
+//         selIndex = -1;
         
-    }
+//     }
 
-    u8g2.clearBuffer();
-    u8g2.setDrawColor(1);
+//     u8g2.clearBuffer();
+//     u8g2.setDrawColor(1);
 
-    int barOffset = drawTopBar(16, 44, true, 50);
+//     int barOffset = drawTopBar(16, 44, true, 50);
 
-    u8g2.setFont(u8g2_font_7x13_tr);
+//     u8g2.setFont(u8g2_font_7x13_tr);
 
-    ListRow rows[] = {
-        {"CLOCK", 0},
-        {"LEDS", 1},
-        {"SENSORS", 2},
-        {"SETTINGS", 3},
-    };
+//     ListRow rows[] = {
+//         {"CLOCK", 0},
+//         {"LEDS", 1},
+//         {"SENSORS", 2},
+//         {"SETTINGS", 3},
+//     };
 
-    const int rowCount = 4;
-    const int bottomReserved = 10; // reserve room for the "AUDIO PASSTHROUGH" status text so the list can't clip into it
+//     const int rowCount = 4;
+//     const int bottomReserved = 10; // reserve room for the "AUDIO PASSTHROUGH" status text so the list can't clip into it
 
-    int topOffset = listTop + barOffset;
-    int visRows = getVisibleRows(topOffset, bottomReserved);
+//     int topOffset = listTop + barOffset;
+//     int visRows = getVisibleRows(topOffset, bottomReserved);
 
-    static int scrollTop = 0;
-    int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
+//     static int scrollTop = 0;
+//     int sel = (selIndex >= 0) ? selIndex : 0;
+//     scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
 
-    for (int i = 0; i < visRows; i++)
-    {
-        int rowIdx = scrollTop + i;
-        if (rowIdx >= rowCount) break;
+//     for (int i = 0; i < visRows; i++)
+//     {
+//         int rowIdx = scrollTop + i;
+//         if (rowIdx >= rowCount) break;
 
-        ListRow &row = rows[rowIdx];
-        bool selected = (selIndex == row.idx);
-        drawListRow(i, row.label, selected, topOffset);
-    }
+//         ListRow &row = rows[rowIdx];
+//         bool selected = (selIndex == row.idx);
+//         drawListRow(i, row.label, selected, topOffset);
+//     }
 
-    drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64 - bottomReserved);
+//     drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64 - bottomReserved);
 
-    u8g2.drawStr(3, 64, "AUDIO PASSTHROUGH");
+//     u8g2.drawStr(3, 64, "AUDIO PASSTHROUGH");
 
-    drawMessagePopup(); 
+//     drawMessagePopup(); 
 
-    u8g2.sendBuffer();
-}
-
-
-
-
-
-
-
-void screen_clock_face() {
-    u8g2.clearBuffer();
-    u8g2.setDrawColor(1);
-
-    int barOffset = drawTopBar(16, 44, true, 50);
-
-    u8g2.setFont(clockStyleFont[static_cast<int>(g_clockMode)]);
-    int textW = u8g2.getStrWidth("16:42");
-    int textH = u8g2.getMaxCharHeight();
-    int textX = (128 - textW) / 2;
-    int textY = barOffset + ((64 - barOffset) + textH) / 2;
-    u8g2.drawStr(textX, textY, "16:42");
-
-    drawMessagePopup(); 
-
-    u8g2.sendBuffer();
-}
+//     u8g2.sendBuffer();
+// }
 
 
 
 
 
 
+
+// void screen_clock_face() {
+//     u8g2.clearBuffer();
+//     u8g2.setDrawColor(1);
+
+//     int barOffset = drawTopBar(16, 44, true, 50);
+
+//     u8g2.setFont(clockStyleFont[static_cast<int>(g_clockMode)]);
+//     int textW = u8g2.getStrWidth("16:42");
+//     int textH = u8g2.getMaxCharHeight();
+//     int textX = (128 - textW) / 2;
+//     int textY = barOffset + ((64 - barOffset) + textH) / 2;
+//     u8g2.drawStr(textX, textY, "16:42");
+
+//     drawMessagePopup(); 
+
+//     u8g2.sendBuffer();
+// }
 
 
 
@@ -537,221 +492,221 @@ void screen_clock_face() {
 // ***********************          ***********************
 // *********************** SETTINGS ***********************
 // ***********************          ***********************
-void screen_settings(bool isAudioPass)
-{
-    if (selIndex >= 0 && (millis() - lastInputTime > 5000))
-    {
-        selIndex = -1;
-    }
+// void screen_settings(bool isAudioPass)
+// {
+//     if (selIndex >= 0 && (millis() - lastInputTime > 5000))
+//     {
+//         selIndex = -1;
+//     }
 
-    u8g2.clearBuffer();
-    u8g2.setDrawColor(1);
+//     u8g2.clearBuffer();
+//     u8g2.setDrawColor(1);
 
-    int barOffset = drawTopBar(16, 44, true, 50);
+//     int barOffset = drawTopBar(16, 44, true, 50);
 
-    u8g2.setFont(u8g2_font_7x13_tr);
+//     u8g2.setFont(u8g2_font_7x13_tr);
 
-    ListRow rows[] = {
-        {"< RETURN  ", 0},
-        {"CONTROLS", 1},
-        {"LED", 2},
-        {"MISC", 3},
-        {"SENSORS", 4},
-        {"STYLE", 5},
-    };
-    const int rowCount = 6;
+//     ListRow rows[] = {
+//         {"< RETURN  ", 0},
+//         {"CONTROLS", 1},
+//         {"LED", 2},
+//         {"MISC", 3},
+//         {"SENSORS", 4},
+//         {"STYLE", 5},
+//     };
+//     const int rowCount = 6;
 
-    int topOffset = listTop + barOffset;
-    int visRows = getVisibleRows(topOffset, 0);
+//     int topOffset = listTop + barOffset;
+//     int visRows = getVisibleRows(topOffset, 0);
 
-    static int scrollTop = 0;
-    int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
+//     static int scrollTop = 0;
+//     int sel = (selIndex >= 0) ? selIndex : 0;
+//     scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
 
-    for (int i = 0; i < visRows; i++)
-    {
-        int rowIdx = scrollTop + i;
-        if (rowIdx >= rowCount) break;
+//     for (int i = 0; i < visRows; i++)
+//     {
+//         int rowIdx = scrollTop + i;
+//         if (rowIdx >= rowCount) break;
 
-        ListRow &row = rows[rowIdx];
-        bool selected = (selIndex == row.idx);
-        drawListRow(i, row.label, selected, topOffset);
-    }
+//         ListRow &row = rows[rowIdx];
+//         bool selected = (selIndex == row.idx);
+//         drawListRow(i, row.label, selected, topOffset);
+//     }
 
-    drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
+//     drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
 
-    drawMessagePopup(); 
+//     drawMessagePopup(); 
 
-    u8g2.sendBuffer();
-}
+//     u8g2.sendBuffer();
+// }
 
 
-void screen_settings_led()
-{
-    if (selIndex >= 0 && (millis() - lastInputTime > 5000))
-    {
-        selIndex = -1;
-        g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
-    }
+// void screen_settings_led()
+// {
+//     if (selIndex >= 0 && (millis() - lastInputTime > 5000))
+//     {
+//         selIndex = -1;
+//         g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
+//     }
 
-    u8g2.clearBuffer();
-    u8g2.setDrawColor(1);
+//     u8g2.clearBuffer();
+//     u8g2.setDrawColor(1);
 
-    int barOffset = drawTopBar(16, 44, true, 50);
+//     int barOffset = drawTopBar(16, 44, true, 50);
 
-    u8g2.setFont(u8g2_font_7x13_tr);
+//     u8g2.setFont(u8g2_font_7x13_tr);
 
-    ListRow rows[] = {
-        {"< RETURN", 0},
-        {"BRIGHTNESS", 1},
-        {"EXPRESSION", 2},
-        {"VOICE DETECTION", 3},
-    };
-    const int rowCount = 4; // this is for the clamps in handleinput
+//     ListRow rows[] = {
+//         {"< RETURN", 0},
+//         {"BRIGHTNESS", 1},
+//         {"EXPRESSION", 2},
+//         {"VOICE DETECTION", 3},
+//     };
+//     const int rowCount = 4; // this is for the clamps in handleinput
 
-    int topOffset = listTop + barOffset;
-    int visRows = getVisibleRows(topOffset, 0);
+//     int topOffset = listTop + barOffset;
+//     int visRows = getVisibleRows(topOffset, 0);
 
-    static int scrollTop = 0;
-    int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
+//     static int scrollTop = 0;
+//     int sel = (selIndex >= 0) ? selIndex : 0;
+//     scrollTop = updateScrollTop(sel, scrollTop, rowCount, visRows);
 
-    // base listt
-    for (int i = 0; i < visRows; i++)
-    {
-        int rowIdx = scrollTop + i;
-        if (rowIdx >= rowCount) break;
+//     // base listt
+//     for (int i = 0; i < visRows; i++)
+//     {
+//         int rowIdx = scrollTop + i;
+//         if (rowIdx >= rowCount) break;
 
-        ListRow &row = rows[rowIdx];
-        bool selected = (selIndex == row.idx);
+//         ListRow &row = rows[rowIdx];
+//         bool selected = (selIndex == row.idx);
 
-        String buf;
-        const char *label = row.label;
+//         String buf;
+//         const char *label = row.label;
 
         
-        if (row.idx == 1 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
-        {
-            buf = "-   " + String(g_brightnessLevel) + "   +";
-            label = buf.c_str();
-        }
+//         if (row.idx == 1 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
+//         {
+//             buf = "-   " + String(g_brightnessLevel) + "   +";
+//             label = buf.c_str();
+//         }
 
-        if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
-        {
-            label = ""; // blank out "VOICE DETECTION"; drawn as custom glyph+text block below instead
-        }
+//         if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
+//         {
+//             label = ""; // blank out "VOICE DETECTION"; drawn as custom glyph+text block below instead
+//         }
         
 
-        int textY = drawListRow(i, label, selected, topOffset);
+//         int textY = drawListRow(i, label, selected, topOffset);
 
-        if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
-        {
-            const int glyphW = 12;
-            const char *onStr = "ON";
-            const char *offStr = "OFF";
-            const int gap = u8g2.getStrWidth("      ");
+//         if (row.idx == 3 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
+//         {
+//             const int glyphW = 12;
+//             const char *onStr = "ON";
+//             const char *offStr = "OFF";
+//             const int gap = u8g2.getStrWidth("      ");
 
-            u8g2.setFont(u8g2_font_7x13_tr);
-            int onW = u8g2.getStrWidth(onStr);
-            int offW = u8g2.getStrWidth(offStr);
+//             u8g2.setFont(u8g2_font_7x13_tr);
+//             int onW = u8g2.getStrWidth(onStr);
+//             int offW = u8g2.getStrWidth(offStr);
 
-            int blockW = glyphW + onW + gap + glyphW + offW;
-            int cx = (rectW - blockW) / 2;
-            int gy = textY;
+//             int blockW = glyphW + onW + gap + glyphW + offW;
+//             int cx = (rectW - blockW) / 2;
+//             int gy = textY;
 
-            u8g2.setDrawColor(selected ? 0 : 1);
+//             u8g2.setDrawColor(selected ? 0 : 1);
 
-            u8g2.setFont(u8g2_font_7x13_t_symbols);
-            u8g2.drawGlyph(cx, gy, g_isVoiceDetection ? 0x25CF : 0x25CB);
-            cx += glyphW;
+//             u8g2.setFont(u8g2_font_7x13_t_symbols);
+//             u8g2.drawGlyph(cx, gy, g_isVoiceDetection ? 0x25CF : 0x25CB);
+//             cx += glyphW;
 
-            u8g2.setFont(u8g2_font_7x13_tr);
-            u8g2.drawStr(cx, gy, onStr);
-            cx += onW + gap;
+//             u8g2.setFont(u8g2_font_7x13_tr);
+//             u8g2.drawStr(cx, gy, onStr);
+//             cx += onW + gap;
 
-            u8g2.setFont(u8g2_font_7x13_t_symbols);
-            u8g2.drawGlyph(cx, gy, !g_isVoiceDetection ? 0x25CF : 0x25CB);
-            cx += glyphW;
+//             u8g2.setFont(u8g2_font_7x13_t_symbols);
+//             u8g2.drawGlyph(cx, gy, !g_isVoiceDetection ? 0x25CF : 0x25CB);
+//             cx += glyphW;
 
-            u8g2.setFont(u8g2_font_7x13_tr);
-            u8g2.drawStr(cx, gy, offStr);
+//             u8g2.setFont(u8g2_font_7x13_tr);
+//             u8g2.drawStr(cx, gy, offStr);
 
-            u8g2.setDrawColor(1); 
-        }
+//             u8g2.setDrawColor(1); 
+//         }
 
-        u8g2.setDrawColor(selected ? 0 : 1);
-    } // thank you claude 
+//         u8g2.setDrawColor(selected ? 0 : 1);
+//     } // thank you claude 
 
-    drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
+//     drawScrollArrows(scrollTop, rowCount, visRows, topOffset, 64);
 
-    // expression pop up hurrr durrr
-    if (g_LedSettingsScreenMode == LedSettingsScreenMode::EXPRESSION_POPUP)
-    {
-        const int popX = 10, popY = 10, popW = 108, popH = 44;
-        const int popRowH = 12;
-        const int popVisible = 3;
-        u8g2.setDrawColor(0);
-        u8g2.drawBox(popX, popY, popW, popH);   // clear background under popup
-        u8g2.setDrawColor(1);
-        u8g2.drawRFrame(popX, popY, popW, popH, 4);
-        int popScrollTop = clamp(g_expressionSelIndex - popVisible / 2, 0, expressionCount - popVisible);
-        for (int i = 0; i < popVisible; i++)
-        {
-            int idx = popScrollTop + i;
-            if (idx >= expressionCount) break;
-            int rowTop = popY + 2 + i * popRowH;
-            int y = rowTop + 9;
-            bool sel = (idx == g_expressionSelIndex);
-            if (sel)
-            {
-                u8g2.drawBox(popX + 2, rowTop, popW - 4, popRowH - 1);
-                u8g2.setDrawColor(0);
-                u8g2.drawStr(popX + 6, y + 1, expressionList[idx]);
-                u8g2.setDrawColor(1);
-            }
-            else
-            {
-                u8g2.drawStr(popX + 6, y, expressionList[idx]);
-            }
-        }
-    }
+//     // expression pop up hurrr durrr
+//     if (g_LedSettingsScreenMode == LedSettingsScreenMode::EXPRESSION_POPUP)
+//     {
+//         const int popX = 10, popY = 10, popW = 108, popH = 44;
+//         const int popRowH = 12;
+//         const int popVisible = 3;
+//         u8g2.setDrawColor(0);
+//         u8g2.drawBox(popX, popY, popW, popH);   // clear background under popup
+//         u8g2.setDrawColor(1);
+//         u8g2.drawRFrame(popX, popY, popW, popH, 4);
+//         int popScrollTop = clamp(g_expressionSelIndex - popVisible / 2, 0, expressionCount - popVisible);
+//         for (int i = 0; i < popVisible; i++)
+//         {
+//             int idx = popScrollTop + i;
+//             if (idx >= expressionCount) break;
+//             int rowTop = popY + 2 + i * popRowH;
+//             int y = rowTop + 9;
+//             bool sel = (idx == g_expressionSelIndex);
+//             if (sel)
+//             {
+//                 u8g2.drawBox(popX + 2, rowTop, popW - 4, popRowH - 1);
+//                 u8g2.setDrawColor(0);
+//                 u8g2.drawStr(popX + 6, y + 1, expressionList[idx]);
+//                 u8g2.setDrawColor(1);
+//             }
+//             else
+//             {
+//                 u8g2.drawStr(popX + 6, y, expressionList[idx]);
+//             }
+//         }
+//     }
 
-    drawMessagePopup(); 
+//     drawMessagePopup(); 
 
-    u8g2.sendBuffer();
-}
+//     u8g2.sendBuffer();
+// }
 
 
 
-void screen_settings_style() {
-    if (selIndex >= 0 && (millis() - lastInputTime > 5000)) {
-        selIndex = -1;
-        g_StyleSettingsScreenMode = StyleSettingsScreenMode::LIST;
-    }
+// void screen_settings_style() {
+//     if (selIndex >= 0 && (millis() - lastInputTime > 5000)) {
+//         selIndex = -1;
+//         g_StyleSettingsScreenMode = StyleSettingsScreenMode::LIST;
+//     }
 
-    u8g2.clearBuffer();
-    u8g2.setDrawColor(1);
-    u8g2.setFont(u8g2_font_7x13_tr);
+//     u8g2.clearBuffer();
+//     u8g2.setDrawColor(1);
+//     u8g2.setFont(u8g2_font_7x13_tr);
 
-    ListRow rows[] = {
-        {"< RETURN", 0},
-        {"Enable top bar", 0}
-    };
-    const int rowCount = 2;
-    static int scrollTop = 0;
-    int sel = (selIndex >= 0) ? selIndex : 0;
-    scrollTop = updateScrollTop(sel, scrollTop, rowCount, visibleRows);
+//     ListRow rows[] = {
+//         {"< RETURN", 0},
+//         {"Enable top bar", 0}
+//     };
+//     const int rowCount = 2;
+//     static int scrollTop = 0;
+//     int sel = (selIndex >= 0) ? selIndex : 0;
+//     scrollTop = updateScrollTop(sel, scrollTop, rowCount, visibleRows);
     
-    for (int i = 0; i < visibleRows; i++) {
-        int rowidx = scrollTop + i;
-        if (rowidx >= rowCount) break;
+//     for (int i = 0; i < visibleRows; i++) {
+//         int rowidx = scrollTop + i;
+//         if (rowidx >= rowCount) break;
 
-        ListRow &row = rows[rowidx];
-        bool selected = (selIndex == row.idx);
+//         ListRow &row = rows[rowidx];
+//         bool selected = (selIndex == row.idx);
 
         
-    }
+//     }
 
-}
+// }
 // ***********************              ***********************
 // *********************** END SETTINGS ***********************
 // ***********************              ***********************
@@ -772,58 +727,7 @@ void screen_settings_style() {
 
 
 
-Screen getScreenForSelection(Screen current, int index) {
-    switch(current) {
-        case Screen::HOME:
-            if (index == 3) return Screen::SETTINGS;
-            if (index == 0) return Screen::CLOCK;
-            return current;
-        case Screen::SETTINGS:
-            if (index == 0) return Screen::HOME;
-            return current;
-        default:
-            return current;
-    }
-}
 
-
-
-
-
-SettingsScreen getSettingsScreenForSelection(SettingsScreen current, int index) {
-    switch (current) {
-        case SettingsScreen::ROOT:
-            if (index == 0) return SettingsScreen::ROOT; // handled specially below (exits to HOME)
-            if (index == 1) return SettingsScreen::CONTROLS;
-            if (index == 2) return SettingsScreen::LED;
-            if (index == 3) return SettingsScreen::MISC;
-            if (index == 4) return SettingsScreen::SENSORS;
-            if (index == 5) return SettingsScreen::STYLE;
-            return current;
-        default:
-            return current; // sub-pages handle their own idx==0 "< RETURN" specially
-    }
-}
-
-
-
-
-int getMaxScreenIndex(Screen screen)
-{
-    switch (screen)
-    {
-    case Screen::HOME: return 3;
-    case Screen::SETTINGS:
-        switch (g_currentSettingsScreen)
-        {
-        case SettingsScreen::ROOT: return 5;
-        case SettingsScreen::LED: return 3;
-        default: return 0;
-        }
-    case Screen::TELEMETRY: return 2;
-    default: return 0;
-    }
-}
 
 void settingsScreenSwitch(SettingsScreen sub) {
     switch (sub) {
@@ -851,95 +755,4 @@ void screenSwitch(Screen screen)
     case Screen::CLOCK:
         screen_clock_face();
     }
-}
-
-
-
-
-
-
-void handleInput(int src, int listMax)
-{
-    if (g_messagePopupActive)
-    {
-        if (src == ROLE_SELECT) g_messagePopupActive = false;
-        lastInputTime = millis();
-        return;
-    }
-
-    bool onLed = (g_currentScreen == Screen::SETTINGS && g_currentSettingsScreen == SettingsScreen::LED);
-
-    if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
-    {
-        if (src == ROLE_UP) g_brightnessLevel = clamp(g_brightnessLevel + 1, 0, 15);
-        else if (src == ROLE_DOWN) g_brightnessLevel = clamp(g_brightnessLevel - 1, 0, 15);
-        else if (src == ROLE_SELECT) g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // confirm value, drop back to list nav ADD COMMAND HERE
-        lastInputTime = millis();
-        return;
-    }
-
-    if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EXPRESSION_POPUP)
-    {
-        if (src == ROLE_UP) g_expressionSelIndex = clamp(g_expressionSelIndex + 1, 0, expressionCount - 1);
-        else if (src == ROLE_DOWN) g_expressionSelIndex = clamp(g_expressionSelIndex - 1, 0, expressionCount - 1);
-        else if (src == ROLE_SELECT) { 
-            g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
-            currentEyeExpression = g_expressionSelIndex;
-            renderFace();
-        }
-        lastInputTime = millis();
-        return;
-    }
-
-    if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_ISVOICEDETECTION)
-    {
-        if (src == ROLE_UP || src == ROLE_DOWN) g_isVoiceDetection = !g_isVoiceDetection;
-        else if (src == ROLE_SELECT) {
-            g_LedSettingsScreenMode = LedSettingsScreenMode::LIST;
-        }
-        lastInputTime = millis();
-        return;
-    }
-
-    if (g_currentScreen == Screen::CLOCK)
-    {
-        if (src == ROLE_UP) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) + 1, 0, clockStyleCount - 1));
-        else if (src == ROLE_DOWN) g_clockMode = static_cast<ClockMode>(clamp(static_cast<int>(g_clockMode) - 1, 0, clockStyleCount - 1));
-        else if (src == ROLE_SELECT) g_currentScreen = Screen::HOME;
-        lastInputTime = millis();
-        return;
-    }
-
-    if (src == ROLE_UP) {
-        selIndex = clamp(selIndex + 1, 0, getMaxScreenIndex(g_currentScreen));
-    } else if (src == ROLE_DOWN) {
-        selIndex = clamp(selIndex - 1, 0, getMaxScreenIndex(g_currentScreen));
-    } else if (src == ROLE_SELECT) {
-        if (selIndex >= 0) {
-            if (g_currentScreen == Screen::SETTINGS) {
-                if (g_currentSettingsScreen == SettingsScreen::ROOT && selIndex == 0) {
-                    g_currentScreen = Screen::HOME;
-                    selIndex = -1;
-                } else if (g_currentSettingsScreen != SettingsScreen::ROOT && selIndex == 0) {
-                    g_currentSettingsScreen = SettingsScreen::ROOT;
-                    selIndex = -1;
-                } else if (g_currentSettingsScreen == SettingsScreen::ROOT) {
-                    g_currentSettingsScreen = getSettingsScreenForSelection(g_currentSettingsScreen, selIndex);
-                    selIndex = -1;
-                } else if (g_currentSettingsScreen == SettingsScreen::LED) {
-                    if (selIndex == 1) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_BRIGHTNESS;}
-                    else if (selIndex == 2) {g_LedSettingsScreenMode = LedSettingsScreenMode::EXPRESSION_POPUP;}
-                    else if (selIndex == 3) {g_LedSettingsScreenMode = LedSettingsScreenMode::EDIT_ISVOICEDETECTION;}
-                }
-            } else {
-                Screen t = getScreenForSelection(g_currentScreen, selIndex);
-                if (t != g_currentScreen) {
-                    g_currentScreen = t;
-                    selIndex = -1;
-                }
-            }
-        }
-    }
-    lastInputTime = millis();
-    Serial.println(selIndex);
 }

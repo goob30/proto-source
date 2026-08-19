@@ -53,3 +53,47 @@ int getMaxScreenIndex(Screen screen);
 
 extern char g_messagePopupText[128];
 void popup(const char *msg, bool isError);
+
+extern const int rectW;
+extern const int rowH;
+extern const int rowGap;
+extern const int visibleRows;
+extern const int listTop;
+extern const int topBarH;
+
+struct ListRow
+{
+    const char *label;
+    int idx;
+};
+
+struct ValueRow
+{
+    const char *fmt;
+    int val;
+    int y;
+    int idx;
+};
+
+// global methods for any screen
+int updateScrollTop(int sel, int scrollTop, int rowCount, int visRows);
+int getVisibleRows(int topOffset, int bottomReserved);
+int drawListRow(int rowSlot, const char *label, bool selected, int topOffset);
+void drawScrollArrows(int scrollTop = 0, int rowCount = 0, int visRows = 0, int topOffset = 0, int bottomLimit = 0);
+int drawTopBar(int hh, int mm, bool bt, int bat);
+void drawScrollingText(const char **labels, int count, int x, int y, int width, int gapPx, float speedPxPerSec);
+
+// popup
+extern char g_messagePopupText[128];
+extern bool g_messagePopupActive;
+extern bool g_messagePopupIsError;
+void drawMessagePopup();
+void popup(const char *msg, bool isError);
+
+// idk
+extern bool g_isTopBarEnabled;
+extern const char* clockStyleList[];
+extern const uint8_t* clockStyleFont[];
+extern const char* expressionList[];
+
+void screenSwitch(Screen screen);

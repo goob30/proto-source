@@ -9,6 +9,7 @@
 #include "bitmaps.h"
 #include "clamp.h"
 #include "screens.h"
+#include "inputHandler.h"
 #include "esp_system.h"
 #include "esp32-hal.h"
 #include "soc/soc.h"
