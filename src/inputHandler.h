@@ -23,6 +23,21 @@ extern LedSettingsScreenMode g_LedSettingsScreenMode;
 extern StyleSettingsScreenMode g_StyleSettingsScreenMode;
 extern ClockMode g_clockMode;
 
+constexpr int BTN_INDEX_L = 32;
+constexpr int BTN_MIDDLE_L = 33;
+constexpr int BTN_INDEX_R = 25;
+constexpr int BTN_MIDDLE_R = 14;
+constexpr int BTN_BOOP = 4;
+
+extern bool lastBoopState;
+
+extern const int buttonPins[NUM_BUTTONS];
+extern ButtonRole buttonRole[NUM_BUTTONS];
+extern bool buttonLastState[NUM_BUTTONS];
+
+void initButtons();
+void pollInputs();
+
 extern int g_expressionSelIndex;
 extern bool g_isVoiceDetection;
 

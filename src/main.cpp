@@ -17,9 +17,7 @@
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 
-const int buttonPins[NUM_BUTTONS] = { BTN_INDEX_L, BTN_MIDDLE_L, BTN_INDEX_R, BTN_MIDDLE_R };
-ButtonRole buttonRole[NUM_BUTTONS] = { ROLE_UP, ROLE_DOWN, ROLE_SELECT, ROLE_MISC };
-bool buttonLastState[NUM_BUTTONS] = { HIGH, HIGH, HIGH, HIGH };
+
 
 void setup() {
   /// initIfCrash();
@@ -31,7 +29,7 @@ void setup() {
   popup(crashMsg, true);    
   setBreadcrumb("boot");
 
-  for (int i = 0; i < NUM_BUTTONS; i++) pinMode(buttonPins[i], INPUT_PULLUP);
+  initButtons();
 
   updateBlinkSequence();
 
@@ -46,13 +44,15 @@ void setup() {
 }
 
 void loop() {
-  for (int i = 0; i < NUM_BUTTONS; i++) {
-    bool cur = digitalRead(buttonPins[i]);
-    if (buttonLastState[i] == HIGH && cur == LOW) {
-      handleInput(buttonRole[i], getMaxScreenIndex(g_currentScreen));
-    }
-    buttonLastState[i] = cur;
-  }
+  // for (int i = 0; i < NUM_BUTTONS; i++) {
+  //   bool cur = digitalRead(buttonPins[i]);
+  //   if (buttonLastState[i] == HIGH && cur == LOW) {
+  //     handleInput(buttonRole[i], getMaxScreenIndex(g_currentScreen));
+  //   }
+  //   buttonLastState[i] = cur;
+  // }
+
+  pollInputs();
 
   screenSwitch(g_currentScreen);
   updateTalking();

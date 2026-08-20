@@ -12,6 +12,7 @@ int selIndex = -1;
 int prevSelIndex = -1;
 unsigned long lastInputTime = 0;
 
+
 Screen g_currentScreen = Screen::HOME;
 SettingsScreen g_currentSettingsScreen = SettingsScreen::ROOT;
 
@@ -24,6 +25,39 @@ bool g_isVoiceDetection = false;
 
 const int clockStyleCount = 3;
 const int expressionCount = NUM_EYE_EXPRESSIONS; // not starting at 0, total count
+
+int lastExpression = currentEyeExpression;
+
+bool lastBoopState = false;
+
+const int buttonPins[NUM_BUTTONS] = { BTN_INDEX_L, BTN_MIDDLE_L, BTN_INDEX_R, BTN_MIDDLE_R };
+ButtonRole buttonRole[NUM_BUTTONS] = { ROLE_UP, ROLE_DOWN, ROLE_SELECT, ROLE_MISC };
+bool buttonLastState[NUM_BUTTONS] = { HIGH, HIGH, HIGH, HIGH };
+
+void initButtons() {
+    for (int i = 0; i < NUM_BUTTONS; i++) pinMode(buttonPins[i], INPUT_PULLUP);
+    pinMode(BTN_BOOP, INPUT_PULLUP);
+}
+
+void pollInputs() {
+    for (int i = 0; i < NUM_BUTTONS; i++) {
+        bool cur = digitalRead(buttonPins[i]);
+        if (buttonLastState[i] == HIGH && cur == LOW) {
+            handleInput(buttonRole[i], getMaxScreenIndex(g_currentScreen));
+        }
+        buttonLastState[i] = cur;
+    }
+    bool boopCur = digitalRead(BTN_BOOP);
+    if (!g.isBoop && boopCur == LOW) {        // press edge
+        lastExpression = currentEyeExpression;
+        currentEyeExpression = 3;
+        g.isBoop = true;
+    } else if (g.isBoop && boopCur == HIGH) { // release edge
+        currentEyeExpression = lastExpression;
+        g.isBoop = false;
+    }
+    lastBoopState = boopCur;
+}
 
 
 Screen getScreenForSelection(Screen current, int index) {

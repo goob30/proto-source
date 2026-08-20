@@ -8,4 +8,5 @@ typedef struct {
     int co2 = 30;
     int fan = 100;
     int hum = 30;
+    bool isBoop = false;
 } globals;
