@@ -1,8 +1,6 @@
 #include "inputHandler.h"
-#include "timer.h" // clamp()
 
-// defined by the LED / eyes subsystem elsewhere in the codebase
-extern int g_brightnessLevel;
+
 extern int currentEyeExpression;
 void renderFace();
 
@@ -29,6 +27,7 @@ const int expressionCount = 5; // not starting at 0, total count
 
 
 Screen getScreenForSelection(Screen current, int index) {
+    setBreadcrumb("getScreenForSelection");
     switch (current) {
         case Screen::HOME:
             if (index == 3) return Screen::SETTINGS;
@@ -76,6 +75,7 @@ int getMaxScreenIndex(Screen screen)
 
 void handleInput(int src, int listMax)
 {
+    setBreadcrumb("handleInput");
     if (g_messagePopupActive)
     {
         if (src == ROLE_SELECT) g_messagePopupActive = false;
@@ -87,8 +87,8 @@ void handleInput(int src, int listMax)
 
     if (onLed && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
     {
-        if (src == ROLE_UP) g_brightnessLevel = clamp(g_brightnessLevel + 1, 0, 15);
-        else if (src == ROLE_DOWN) g_brightnessLevel = clamp(g_brightnessLevel - 1, 0, 15);
+        if (src == ROLE_UP) g.brightnessLevel = clamp(g.brightnessLevel + 1, 0, 15);
+        else if (src == ROLE_DOWN) g.brightnessLevel = clamp(g.brightnessLevel - 1, 0, 15);
         else if (src == ROLE_SELECT) g_LedSettingsScreenMode = LedSettingsScreenMode::LIST; // confirm value, drop back to list nav ADD COMMAND HERE
         lastInputTime = millis();
         return;

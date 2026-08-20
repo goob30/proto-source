@@ -124,7 +124,7 @@ void screen_settings_led()
         
         if (row.idx == 1 && g_LedSettingsScreenMode == LedSettingsScreenMode::EDIT_BRIGHTNESS)
         {
-            buf = "-   " + String(g_brightnessLevel) + "   +";
+            buf = "-   " + String(g.brightnessLevel) + "   +";
             label = buf.c_str();
         }
 

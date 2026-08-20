@@ -3,14 +3,9 @@
 //       add functionality to draw screens from their respective files/headers instead of hardcoded into here
 
 #include "screens.h"
-#include "inputHandler.h"
-#include "timer.h"
-#include "screens/clockScreen.h"
-#include "screens/settingsScreen.h"
-#include "screens/homeScreen.h"
 
 
-extern int g_brightnessLevel;
+// extern int g_brightnessLevel;
 
 char g_messagePopupText[128] = "";
 bool g_messagePopupActive = false;
@@ -400,6 +395,7 @@ void drawMessagePopup()
 
 void popup(const char *msg, bool isError)
 {
+    if (!msg) return;
     strncpy(g_messagePopupText, msg, sizeof(g_messagePopupText) - 1);
     g_messagePopupText[sizeof(g_messagePopupText) - 1] = '\0';
     g_messagePopupIsError = isError;
@@ -730,6 +726,7 @@ void popup(const char *msg, bool isError)
 
 
 void settingsScreenSwitch(SettingsScreen sub) {
+    setBreadcrumb("settingsScreenSwitch");
     switch (sub) {
         case SettingsScreen::ROOT: screen_settings(g_isVoiceDetection); break;
         case SettingsScreen::CONTROLS: break;
@@ -743,11 +740,12 @@ void settingsScreenSwitch(SettingsScreen sub) {
 
 void screenSwitch(Screen screen)
 {
+    setBreadcrumb("screenSwitch");
     g_currentScreen = screen;
     switch (screen)
     {
     case Screen::HOME:
-        screen_home(g_isVoiceDetection, globalCo2, globalFan, globalHum);
+        screen_home(g_isVoiceDetection, g.co2, g.fan, g.hum);
         break;
     case Screen::SETTINGS:
         settingsScreenSwitch(g_currentSettingsScreen);

@@ -1,5 +1,37 @@
 #pragma once
 #include <stdint.h>
+#include <MD_MAX72xx.h>
+
+#define LEFT_NOSE_OFFSET 0
+#define LEFT_MOUTH_OFFSET 8
+#define LEFT_EYE_OFFSET 40
+#define RIGHT_EYE_OFFSET 0
+#define RIGHT_MOUTH_OFFSET 16
+#define RIGHT_NOSE_OFFSET 48
+
+extern bool isTalking;
+extern uint8_t mouthFrame;
+extern unsigned long lastMouthUpdate;
+extern const unsigned long TALK_INTERVAL;
+
+extern int blinkSequenceRegularEye[5];
+extern int blinkSequenceConfusedEye[1];
+extern int *selectedBlinkSequence;
+extern int numBlinkSeq;
+extern int blindex;
+
+extern bool isBlinkEnabled;
+extern bool isAnimatedBlinkEnabled;
+extern unsigned long lastBlinkMillis;
+extern unsigned long nextBlinkInterval;
+extern unsigned long nextBlinkFrameTime;
+extern unsigned long lastBlinkFrameTime;
+extern int blinkDuration;
+
+extern int currentEyeExpression;
+
+extern bool wasBlinking;
+
 
 const uint8_t eyeClosed[16] = {
   0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
@@ -127,4 +159,6 @@ const uint8_t noseR[8] = {
 void blinkEyeChance(unsigned long lastBlink);
 
 
-
+void updateBlinkSequence();
+bool isBlinking();
+void updateTalking();
