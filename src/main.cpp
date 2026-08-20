@@ -1,5 +1,5 @@
 // TODO: implement telemetry reading
-//       move stuff into cpp
+//       make dead eye persist until closing crash prompt
 //       unfuck the repo
 
 #include <MD_MAX72xx.h>
@@ -23,7 +23,12 @@ bool buttonLastState[NUM_BUTTONS] = { HIGH, HIGH, HIGH, HIGH };
 
 void setup() {
   /// initIfCrash();
-  popup(initIfCrash(), true);
+  const char* crashMsg = initIfCrash();
+  if (crashMsg) {
+    currentEyeExpression = 3;
+    isBlinkEnabled = false;
+  }
+  popup(crashMsg, true);    
   setBreadcrumb("boot");
 
   for (int i = 0; i < NUM_BUTTONS; i++) pinMode(buttonPins[i], INPUT_PULLUP);

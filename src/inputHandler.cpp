@@ -23,7 +23,7 @@ int g_expressionSelIndex = 0;
 bool g_isVoiceDetection = false;
 
 const int clockStyleCount = 3;
-const int expressionCount = 5; // not starting at 0, total count
+const int expressionCount = NUM_EYE_EXPRESSIONS; // not starting at 0, total count
 
 
 Screen getScreenForSelection(Screen current, int index) {
@@ -77,9 +77,15 @@ void handleInput(int src, int listMax)
 {
     setBreadcrumb("handleInput");
     if (g_messagePopupActive)
-    {
-        if (src == ROLE_SELECT) g_messagePopupActive = false;
-        lastInputTime = millis();
+    {   
+        if (src == ROLE_SELECT) {
+            g_messagePopupActive = false;
+            if (g_messagePopupIsError) {
+                currentEyeExpression = 0;
+                isBlinkEnabled = true;
+            }
+        }
+        lastInputTime = millis(); // TODO: set this to whatever it was before crash, if possible
         return;
     }
 

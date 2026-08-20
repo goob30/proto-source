@@ -25,7 +25,6 @@ const uint8_t* clockStyleFont[] = {
 
 bool g_isTopBarEnabled = true;
 
-const char* expressionList[] = {"DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4"};
 
 // forward declarations so functions can reference each other regardless of definition order
 void screen_settings(bool isAudioPass);

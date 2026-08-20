@@ -30,6 +30,9 @@ extern U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2;
 // const char* expressionList[] = {"DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4"};
 // ********************
 
+
+const char* expressionList[] = {"DEFAULT", "MOD 1", "MOD 2", "MOD 3", "MOD 4"};
+
 void screen_settings(bool isAudioPass)
 {
     if (selIndex >= 0 && (millis() - lastInputTime > 5000))

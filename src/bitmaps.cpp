@@ -47,12 +47,14 @@ void updateBlinkSequence() {
 }
 
 bool isBlinking() {
-  if ((millis() - lastBlinkMillis) > nextBlinkInterval) {
-    lastBlinkMillis = millis();
-    nextBlinkInterval = random(6000, 8000);
-    return true;
-  }
-  return (millis() - lastBlinkMillis) < blinkDuration;
+    if (!isBlinkEnabled) return false;
+    
+    if ((millis() - lastBlinkMillis) > nextBlinkInterval) {
+        lastBlinkMillis = millis();
+        nextBlinkInterval = random(6000, 8000);
+        return true;
+    }
+    return (millis() - lastBlinkMillis) < blinkDuration;
 }
 
 void updateTalking() {
