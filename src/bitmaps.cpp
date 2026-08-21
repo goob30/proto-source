@@ -83,12 +83,14 @@ void updateTalking() {
 unsigned long boopStartMillis = 0;
 unsigned long boopEndMillis = 0;
 
-void updateBlush(bool isBlushed) { // TODO: put ts in header
+// TODO: put ts in header, fix possible doublecall bug
+void updateBlush(bool isBlushed, int dur1, int dur2 = -1) { 
     if (isBlushed) {
       g.blushLevel = lerp(0, 100, boopStartMillis, 250);
     }
     else {
-      g.blushLevel = lerp (100, 0, boopEndMillis, 250);
+      if (dur2 != -1) g.blushLevel = lerp (100, 0, boopEndMillis, dur2);
+      else { g.blushLevel = lerp (100, 0, boopEndMillis, dur1); }
     }
 }
 bool justBooped = false;
@@ -107,9 +109,9 @@ void updateBoop(bool btn) {
         g.isBoop = false;
         boopEndMillis = millis();
     }
-    if (g.isBoop) updateBlush(true); // continue it
+    if (g.isBoop) updateBlush(true, 250); // continue it
     else if (justBooped) {
-      updateBlush(false);
+      updateBlush(false, 250);
       if (isTimerFinished(boopEndMillis, 250)) justBooped = false;
     }
 
