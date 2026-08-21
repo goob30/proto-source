@@ -5,8 +5,6 @@
 #include "errorHandler.h"
 #include "dataHandler.h"
 
-extern globals g;
-
 // LIST is when you are only scrolling, not modifying a value
 enum class LedSettingsScreenMode : int {LIST, EDIT_BRIGHTNESS, EXPRESSION_POPUP, EDIT_ISVOICEDETECTION};
 enum class StyleSettingsScreenMode : int {LIST, EDIT_ISTOPBARENABLED};

@@ -10,3 +10,5 @@ typedef struct {
     int hum = 30;
     bool isBoop = false;
 } globals;
+
+extern globals g;

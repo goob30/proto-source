@@ -4,7 +4,6 @@
 #include "clamp.h"
 
 
-globals g;
 
 MD_MAX72XX mxR = MD_MAX72XX(HARDWARE_TYPE, DATA_PINR, CLK_PINR, CS_PINR, MAX_DEVICES);
 MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEVICES);
@@ -64,4 +63,5 @@ void renderFace() {
 
     mxL.control(MD_MAX72XX::INTENSITY, g.brightnessLevel);
     mxR.control(MD_MAX72XX::INTENSITY, g.brightnessLevel);
+    updateBlinkSequence();
 }

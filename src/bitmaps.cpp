@@ -1,5 +1,7 @@
 #include "bitmaps.h"
 #include "matrix.h"
+#include "dataHandler.h"
+#include "timer.h"
 
 bool isTalking = true;
 uint8_t mouthFrame = 0;
@@ -29,6 +31,7 @@ int blinkDuration = (isAnimatedBlinkEnabled) ? nextBlinkFrameTime * numBlinkSeq 
 bool wasBlinking = false;
 
 void updateBlinkSequence() {
+    isBlinkEnabled = true;
   switch (currentEyeExpression) {
     case 0:
       selectedBlinkSequence = blinkSequenceRegularEye;
@@ -38,6 +41,9 @@ void updateBlinkSequence() {
       selectedBlinkSequence = blinkSequenceConfusedEye;
       numBlinkSeq = sizeof(blinkSequenceConfusedEye) / sizeof(int);
       break;
+    case 3:
+        isBlinkEnabled = false;
+        break;
     default:
       selectedBlinkSequence = blinkSequenceRegularEye;
       numBlinkSeq = sizeof(blinkSequenceRegularEye) / sizeof(int);
@@ -47,6 +53,9 @@ void updateBlinkSequence() {
 }
 
 bool isBlinking() {
+    if (g.isBoop)  {
+        return false;
+    }
     if (!isBlinkEnabled) return false;
     
     if ((millis() - lastBlinkMillis) > nextBlinkInterval) {
@@ -57,6 +66,10 @@ bool isBlinking() {
     return (millis() - lastBlinkMillis) < blinkDuration;
 }
 
+int lastExpression = currentEyeExpression;
+
+bool lastBoopState = false;
+
 void updateTalking() {
   if (!isTalking) return;
 
@@ -65,4 +78,21 @@ void updateTalking() {
     mouthFrame = (mouthFrame + 1) % NUM_MOUTH_FRAMES;
     renderFace();
   }
+}
+
+unsigned long boopStartMillis = 0;
+
+void updateBoop(bool btn) {
+    if (!g.isBoop && btn == LOW) {
+        lastExpression = currentEyeExpression;
+        currentEyeExpression = 3;
+        g.isBoop = true;
+        boopStartMillis = millis();
+    }
+    else if (g.isBoop && btn == HIGH && isTimerFinished(boopStartMillis, 500)) {
+        currentEyeExpression = lastExpression;
+        g.isBoop = false;
+    }
+
+    lastBoopState = btn;
 }

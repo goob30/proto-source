@@ -110,6 +110,8 @@ const uint8_t eyeL_dead1[16] = { // TODO: create mirror of ts for r eye
 static const uint8_t* eyeFramesL[] = {eyeL, eyeL_1, eye_confused, eye_flustered, eyeL_dead1};
 static const uint8_t* eyeFramesR[] = {eyeR, eyeR_1, eye_confused, eye_flustered, eyeL_dead1};
 
+// 
+
 static const uint8_t* eyeFramesClosingL[] {eyeL_close1, eyeL_close2, eyeClosed};
 static const uint8_t* eyeFramesClosingR[] {eyeR_close1, eyeR_close2, eyeClosed};
 
@@ -174,3 +176,5 @@ void blinkEyeChance(unsigned long lastBlink);
 void updateBlinkSequence();
 bool isBlinking();
 void updateTalking();
+
+void updateBoop(bool btn);

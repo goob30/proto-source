@@ -19,8 +19,6 @@
 #define FONT_BTB u8g2_font_Born2bSportyV2_te
 #define FONT_813 u8g2_font_8x13_m_symbols
 
-extern globals g;
-
 
 // constexpr int BTN_INDEX_L = 32;
 // constexpr int BTN_MIDDLE_L = 33;

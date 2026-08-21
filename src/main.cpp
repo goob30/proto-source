@@ -17,13 +17,11 @@
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 
-
-
 void setup() {
   /// initIfCrash();
   const char* crashMsg = initIfCrash();
   if (crashMsg) {
-    currentEyeExpression = 3;
+    currentEyeExpression = 4;
     isBlinkEnabled = false;
   }
   popup(crashMsg, true);    
@@ -31,7 +29,7 @@ void setup() {
 
   initButtons();
 
-  updateBlinkSequence();
+  
 
   initMatrices();
 
@@ -58,9 +56,8 @@ void loop() {
   updateTalking();
 
   bool blinkingNow = isBlinking();
-
-  if (isBlinking() || wasBlinking) {
-    renderFace();
+  if (blinkingNow || wasBlinking) {
+      renderFace();
   }
   wasBlinking = blinkingNow;
 

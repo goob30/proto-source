@@ -26,9 +26,9 @@ bool g_isVoiceDetection = false;
 const int clockStyleCount = 3;
 const int expressionCount = NUM_EYE_EXPRESSIONS; // not starting at 0, total count
 
-int lastExpression = currentEyeExpression;
+// int lastExpression = currentEyeExpression;
 
-bool lastBoopState = false;
+// bool lastBoopState = false;
 
 const int buttonPins[NUM_BUTTONS] = { BTN_INDEX_L, BTN_MIDDLE_L, BTN_INDEX_R, BTN_MIDDLE_R };
 ButtonRole buttonRole[NUM_BUTTONS] = { ROLE_UP, ROLE_DOWN, ROLE_SELECT, ROLE_MISC };
@@ -47,16 +47,17 @@ void pollInputs() {
         }
         buttonLastState[i] = cur;
     }
-    bool boopCur = digitalRead(BTN_BOOP);
-    if (!g.isBoop && boopCur == LOW) {        // press edge
-        lastExpression = currentEyeExpression;
-        currentEyeExpression = 3;
-        g.isBoop = true;
-    } else if (g.isBoop && boopCur == HIGH) { // release edge
-        currentEyeExpression = lastExpression;
-        g.isBoop = false;
-    }
-    lastBoopState = boopCur;
+    updateBoop(digitalRead(BTN_BOOP));
+//     bool boopCur = digitalRead(BTN_BOOP);
+//     if (!g.isBoop && boopCur == LOW) {        // press edge
+//         lastExpression = currentEyeExpression;
+//         currentEyeExpression = 3;
+//         g.isBoop = true;
+//     } else if (g.isBoop && boopCur == HIGH) { // release edge
+//         currentEyeExpression = lastExpression;
+//         g.isBoop = false;
+//     }
+//     lastBoopState = boopCur;
 }
 
 
