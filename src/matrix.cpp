@@ -2,17 +2,24 @@
 #include "bitmaps.h"
 #include "dataHandler.h"
 #include "clamp.h"
-
+// also contains code for the blush LEDs bc they are also output LEDs
+// oh yeah also put logic for every LED on the helmet here except display
 
 
 MD_MAX72XX mxR = MD_MAX72XX(HARDWARE_TYPE, DATA_PINR, CLK_PINR, CS_PINR, MAX_DEVICES);
 MD_MAX72XX mxL = MD_MAX72XX(HARDWARE_TYPE, DATA_PINL, CLK_PINL, CS_PINL, MAX_DEVICES);
 
 
+
 void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOffset) {
   for (uint8_t x = 0; x < width; x++) {
     mx.setColumn(x + xOffset, bmp[x]);
   }
+}
+
+void initLeds() { 
+    pinMode(BLUSH_PIN_R, OUTPUT);
+    analogWriteResolution(12);
 }
 
 void initMatrices() {
@@ -64,4 +71,8 @@ void renderFace() {
     mxL.control(MD_MAX72XX::INTENSITY, g.brightnessLevel);
     mxR.control(MD_MAX72XX::INTENSITY, g.brightnessLevel);
     updateBlinkSequence();
+}
+
+void updateLeds() {
+    digitalWrite(BLUSH_PIN_R, g.blushLevelDWrite);
 }

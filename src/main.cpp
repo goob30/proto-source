@@ -34,6 +34,7 @@ void setup() {
   initMatrices();
 
   renderFace();
+  updateLeds();
   Serial.begin(115200);
 
   u8g2.begin();

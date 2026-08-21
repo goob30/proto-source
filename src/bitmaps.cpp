@@ -1,7 +1,7 @@
 #include "bitmaps.h"
 #include "matrix.h"
 #include "dataHandler.h"
-#include "timer.h"
+#include "tools.h"
 
 bool isTalking = true;
 uint8_t mouthFrame = 0;
@@ -81,17 +81,36 @@ void updateTalking() {
 }
 
 unsigned long boopStartMillis = 0;
+unsigned long boopEndMillis = 0;
+
+void updateBlush(bool isBlushed) { // TODO: put ts in header
+    if (isBlushed) {
+      g.blushLevel = lerp(0, 100, boopStartMillis, 250);
+    }
+    else {
+      g.blushLevel = lerp (100, 0, boopEndMillis, 250);
+    }
+}
+bool justBooped = false;
 
 void updateBoop(bool btn) {
-    if (!g.isBoop && btn == LOW) {
+    if (!g.isBoop && btn == LOW) { // start it
         lastExpression = currentEyeExpression;
         currentEyeExpression = 3;
         g.isBoop = true;
         boopStartMillis = millis();
+        justBooped = true;
+        
     }
-    else if (g.isBoop && btn == HIGH && isTimerFinished(boopStartMillis, 500)) {
+    else if (g.isBoop && btn == HIGH && isTimerFinished(boopStartMillis, 500)) { // end it
         currentEyeExpression = lastExpression;
         g.isBoop = false;
+        boopEndMillis = millis();
+    }
+    if (g.isBoop) updateBlush(true); // continue it
+    else if (justBooped) {
+      updateBlush(false);
+      if (isTimerFinished(boopEndMillis, 250)) justBooped = false;
     }
 
     lastBoopState = btn;
