@@ -1,19 +1,18 @@
 // TODO: implement telemetry reading
-//       make dead eye persist until closing crash prompt
-//       unfuck the repo
+//       what version of cpp is this gng
 
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include <EEPROM.h>
 #include <Wire.h>
 #include "bitmaps.h"
-#include "clamp.h"
 #include "screens.h"
 #include "inputHandler.h"
 #include "errorHandler.h"
 #include "matrix.h"
 #include "dataHandler.h"
 #include "screenTypes.h"
+#include "tools.h"
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 
@@ -29,9 +28,8 @@ void setup() {
 
   initButtons();
 
-  
-
   initMatrices();
+  initLeds();
 
   renderFace();
   updateLeds();
@@ -55,6 +53,13 @@ void loop() {
 
   screenSwitch(g_currentScreen);
   updateTalking();
+
+  updateLeds();
+  updateData();
+  Serial.print("blush ");
+  Serial.print(g.blushLevel);
+  Serial.print(" pwm ");
+  Serial.println(g.blushLevelPWM);
 
   bool blinkingNow = isBlinking();
   if (blinkingNow || wasBlinking) {

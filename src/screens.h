@@ -3,14 +3,13 @@
 #include <stdint.h>
 #include <U8g2lib.h>
 #include <bitmaps.h>
-#include <clamp.h>
 #include "dataHandler.h"
 #include "inputHandler.h"
-#include "timer.h"
 #include "screens/clockScreen.h"
 #include "screens/settingsScreen.h"
 #include "screens/homeScreen.h"
 #include "errorHandler.h"
+#include "tools.h"
 
  
 

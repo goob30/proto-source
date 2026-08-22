@@ -1,9 +1,9 @@
 #pragma once
 
 #include "screenTypes.h" // Screen enum, ROLE_UP / ROLE_DOWN / ROLE_SELECT constants
-#include "timer.h" // clamp()
 #include "errorHandler.h"
 #include "dataHandler.h"
+#include "tools.h"
 
 // LIST is when you are only scrolling, not modifying a value
 enum class LedSettingsScreenMode : int {LIST, EDIT_BRIGHTNESS, EXPRESSION_POPUP, EDIT_ISVOICEDETECTION};

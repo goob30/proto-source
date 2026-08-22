@@ -1,4 +1,7 @@
 #include "inputHandler.h"
+#include <Arduino.h>
+#include "bitmaps.h"
+#include "screens.h"
 
 
 extern int currentEyeExpression;
@@ -33,6 +36,7 @@ const int expressionCount = NUM_EYE_EXPRESSIONS; // not starting at 0, total cou
 const int buttonPins[NUM_BUTTONS] = { BTN_INDEX_L, BTN_MIDDLE_L, BTN_INDEX_R, BTN_MIDDLE_R };
 ButtonRole buttonRole[NUM_BUTTONS] = { ROLE_UP, ROLE_DOWN, ROLE_SELECT, ROLE_MISC };
 bool buttonLastState[NUM_BUTTONS] = { HIGH, HIGH, HIGH, HIGH };
+    
 
 void initButtons() {
     for (int i = 0; i < NUM_BUTTONS; i++) pinMode(buttonPins[i], INPUT_PULLUP);

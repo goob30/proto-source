@@ -85,15 +85,17 @@ unsigned long boopEndMillis = 0;
 
 // TODO: put ts in header, fix possible doublecall bug
 void updateBlush(bool isBlushed, int dur1, int dur2 = -1) { 
-    if (isBlushed) {
-      g.blushLevel = lerp(0, 100, boopStartMillis, 250);
-    }
-    else {
-      if (dur2 != -1) g.blushLevel = lerp (100, 0, boopEndMillis, dur2);
-      else { g.blushLevel = lerp (100, 0, boopEndMillis, dur1); }
-    }
+  if (isBlushed) {
+    g.blushLevel = lerp(0.0f, 100.0f, boopStartMillis, 250);
+  }
+  else {
+    if (dur2 != -1) g.blushLevel = lerp(100.0f, 0.0f, boopEndMillis, dur2);
+    else { g.blushLevel = lerp(100.0f, 0.0f, boopEndMillis, dur1); }
+  }
 }
 bool justBooped = false;
+
+int blushLerpTime = 500;
 
 void updateBoop(bool btn) {
     if (!g.isBoop && btn == LOW) { // start it
@@ -109,10 +111,10 @@ void updateBoop(bool btn) {
         g.isBoop = false;
         boopEndMillis = millis();
     }
-    if (g.isBoop) updateBlush(true, 250); // continue it
+    if (g.isBoop) updateBlush(true, blushLerpTime); // continue it
     else if (justBooped) {
-      updateBlush(false, 250);
-      if (isTimerFinished(boopEndMillis, 250)) justBooped = false;
+      updateBlush(false, blushLerpTime);
+      if (isTimerFinished(boopEndMillis, blushLerpTime)) justBooped = false;
     }
 
     lastBoopState = btn;

@@ -17,11 +17,13 @@
 
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 
-#define BLUSH_PIN_R 999999 // chagne this duh
+#define BLUSH_PIN_R 26 // chagne this duh
 
 void renderFace();
 
 void updateLeds();
+
+void initLeds();
 
 void mxDrawBitmap(MD_MAX72XX& mx, const uint8_t* bmp, uint8_t width, uint8_t xOffset);
 

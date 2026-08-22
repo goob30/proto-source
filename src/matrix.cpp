@@ -1,7 +1,7 @@
 #include "matrix.h"
 #include "bitmaps.h"
 #include "dataHandler.h"
-#include "clamp.h"
+#include "tools.h"
 // also contains code for the blush LEDs bc they are also output LEDs
 // oh yeah also put logic for every LED on the helmet here except display
 
@@ -74,5 +74,7 @@ void renderFace() {
 }
 
 void updateLeds() {
-    digitalWrite(BLUSH_PIN_R, g.blushLevelDWrite);
+    float gamma = 2.2f;
+    int correctedPWM = (int)(pow(g.blushLevel / 100.0f, gamma) * 4095);
+    analogWrite(BLUSH_PIN_R, correctedPWM);
 }
